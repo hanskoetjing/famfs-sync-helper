@@ -12,15 +12,16 @@
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
+#define FILE_PATH_LENGTH        64
 
 #define IOCTL_MAGIC             0xCE
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
 
 struct famfs_sync_control_struct {
-	char path[64];
+	char path[FILE_PATH_LENGTH + 1];
 };
 
-static char ffs_file_path[64];
+static char ffs_file_path[FILE_PATH_LENGTH + 1];
 static int path_length;
 static dev_t dev_num;
 static struct cdev ffs_cdev;
