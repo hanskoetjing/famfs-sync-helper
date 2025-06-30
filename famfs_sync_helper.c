@@ -17,12 +17,7 @@
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
 
 struct famfs_sync_control_struct {
-	char * path;
-};
-
-enum {
-	CACHE_MODE_UC = 0,
-	CACHE_MODE_C  = 1,
+	char path[64];
 };
 
 static char ffs_file_path[64];
@@ -36,6 +31,8 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 	if (copy_from_user(&rw, (void __user *)arg, sizeof(rw)))
 		return -EFAULT;
+
+	pr_info("Path: %s\n", rw.path);
 
 	switch (cmd) {
 		case IOCTL_SET_FILE_PATH:
