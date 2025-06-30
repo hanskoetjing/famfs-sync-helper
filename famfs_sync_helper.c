@@ -1,4 +1,4 @@
-// ivshm_ioctl_rw.c
+// ffs_handler_ioctl_rw.c
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -7,28 +7,17 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/string.h>
 
-#define DEVICE_NAME             "ivshm"
-#define CLASS_NAME              "ivshm_class"
-
-//#define IVSHM_BASE              0xC080000000ULL
-//#define IVSHM_BASE_UC           0xC082000000ULL
-#define CXL_BASE                0x0518200000ULL
-#define CXL_BASE_UC		0x0516200000ULL
-#define IVSHM_BASE              0x0518200000ULL
-//#define IVSHM_BASE_UC		0x381800000000ULL
-#define IVSHM_BASE_UC		0xc080000000ULL
-#define IVSHM_SIZE              0x02000000ULL  // 32MB
+#define DEVICE_NAME             "ffs_sync"
+#define CLASS_NAME              "ffs_class"
+#define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
 
 #define IOCTL_MAGIC             0xCE
-#define IOCTL_WRITE_VAL         _IOW(IOCTL_MAGIC, 0x01, struct ivshm_rw)
-#define IOCTL_READ_VAL          _IOR(IOCTL_MAGIC, 0x02, struct ivshm_rw)
-#define IOCTL_SET_CACHE_MODE    _IOW(IOCTL_MAGIC, 0x03, struct ivshm_rw)
+#define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
 
-struct ivshm_rw {
-	uint32_t offset;
-	uint32_t value;
-	uint32_t cache_mode;
+struct famfs_sync_control_struct {
+	char * path;
 };
 
 enum {
@@ -36,41 +25,23 @@ enum {
 	CACHE_MODE_C  = 1,
 };
 
+static char ffs_file_path[64];
+static int path_length;
 static dev_t dev_num;
-static struct cdev ivshm_cdev;
-static struct class *ivshm_class;
-static void __iomem *ivshm_virt;
-static void __iomem *ivshm_virt_uc;
-//static void __iomem *cxl_virt;
-static void __iomem *cxl_virt_uc;
-static int cache_mode = CACHE_MODE_C;
+static struct cdev ffs_cdev;
+static struct class *ffs_class;
 
-static long ivshm_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
-	struct ivshm_rw rw;
-	void __iomem *ivshm_virt_local = ivshm_virt;
+static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+	struct famfs_sync_control_struct rw;
 
 	if (copy_from_user(&rw, (void __user *)arg, sizeof(rw)))
 		return -EFAULT;
 
-	if (rw.offset + sizeof(uint32_t) > IVSHM_SIZE)
-		return -EINVAL;
-	pr_info("cmd: %d\n", cmd);
 	switch (cmd) {
-		case IOCTL_SET_CACHE_MODE:
-			cache_mode = rw.cache_mode;
-			if (cache_mode == CACHE_MODE_UC) {
-				ivshm_virt_local = ivshm_virt_uc;
-			}
+		case IOCTL_SET_FILE_PATH:
+			path_length = strscpy(ffs_file_path, rw.path, 64);
+			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
 			break;
-		case IOCTL_WRITE_VAL:
-			writel(rw.value, ivshm_virt_local + rw.offset);
-			pr_info("ivshm: Wrote 0x%x to offset 0x%x\n", rw.value, rw.offset);
-			break;
-		case IOCTL_READ_VAL:
-			rw.value = readl(ivshm_virt_local + rw.offset);
-			if (copy_to_user((void __user *)arg, &rw, sizeof(rw)))
-				return -EFAULT;
-		pr_info("ivshm: Read  0x%x from offset 0x%x\n", rw.value, rw.offset);
 		break;
 
 		default:
@@ -80,72 +51,44 @@ static long ivshm_ioctl(struct file *file, unsigned int cmd, unsigned long arg) 
 	return 0;
 }
 
-static int ivshm_mmap(struct file *filp, struct vm_area_struct *vma) {
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long pfn;
+static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
 
-	if (size > IVSHM_SIZE)
+	if (strcmp(DUMMY_FILE_PATH, ffs_file_path)){
+		pr_info("Please set the file path first\n");
 		return -EINVAL;
-
-	pr_info("ivshm: mmap region\n");
-	pfn = IVSHM_BASE >> PAGE_SHIFT;
-	if (cache_mode == CACHE_MODE_UC) {
-		pfn = IVSHM_BASE_UC >> PAGE_SHIFT;
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		pr_info("uncached\n");
-	} else {
-		pr_info("cached\n");
 	}
-	pr_info("ivshm: mmap region %lu\n", pfn);
-	return remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot);
+
+	return 0;
 }
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
-	.unlocked_ioctl = ivshm_ioctl,
-	.mmap = ivshm_mmap,
+	.unlocked_ioctl = ffs_helper_ioctl,
+	.mmap = ffs_helper_mmap,
 };
 
-static int __init ivshm_init(void) {
-	//ivshm_virt = ioremap_cache(IVSHM_BASE, IVSHM_SIZE - 1);
-	ivshm_virt_uc = ioremap_uc(IVSHM_BASE_UC, IVSHM_SIZE - 1);
-	cxl_virt_uc = ioremap_uc(CXL_BASE_UC, IVSHM_SIZE - 1);
-	pr_info("ivshm: cached  at 0x%llx\n", IVSHM_BASE);
-	pr_info("ivshm: uncached at 0x%llx\n", IVSHM_BASE_UC);
-	pr_info("cxl: cached at 0x%llx\n", CXL_BASE);
-	pr_info("cxl: uncached at 0x%llx\n", CXL_BASE_UC);
-	//pr_info("ivshm: mapped cached  at %p\n", ivshm_virt);
-	pr_info("ivshm: mapped uncached at %p\n", ivshm_virt_uc);
-	//pr_info("cxl: mapped cached  at %p\n", ivshm_virt);
-	pr_info("cxl: mapped uncached at %p\n", cxl_virt_uc);
-	//if (!ivshm_virt || !ivshm_virt_uc)
-		//return -ENOMEM;
-	if (!ivshm_virt_uc || !cxl_virt_uc)
-		return -ENOMEM;
+static int __init ffs_helper_init(void) {	
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
-	cdev_init(&ivshm_cdev, &fops);
-	cdev_add(&ivshm_cdev, dev_num, 1);
-	ivshm_class = class_create(CLASS_NAME);
-	device_create(ivshm_class, NULL, dev_num, NULL, DEVICE_NAME);
-
-	pr_info("ivshm: loaded\n");
+	cdev_init(&ffs_cdev, &fops);
+	cdev_add(&ffs_cdev, dev_num, 1);
+	ffs_class = class_create(CLASS_NAME);
+	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
+	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
+	pr_info("famfs_sync_helper: loaded\n");
+	pr_info("%s\n", ffs_file_path);
 	return 0;
 }
 
-static void __exit ivshm_exit(void) {
-	device_destroy(ivshm_class, dev_num);
-	class_destroy(ivshm_class);
-	cdev_del(&ivshm_cdev);
+static void __exit ffs_helper_exit(void) {
+	device_destroy(ffs_class, dev_num);
+	class_destroy(ffs_class);
+	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
 
-	//if (ivshm_virt)
-		//iounmap(ivshm_virt);
-	if (ivshm_virt_uc)
-		iounmap(ivshm_virt_uc);
-
-	pr_info("ivshm: unloaded\n");
+	pr_info("famfs_sync_helper: unloaded\n");
 }
 
-module_init(ivshm_init);
-module_exit(ivshm_exit);
+module_init(ffs_helper_init);
+module_exit(ffs_helper_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("FAMFS sync helper for multi-host configuration (r/w for all, not only master)");
