@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     printf("%s\n", argv[1]);
 
     volatile long unsigned int *uc_int = (volatile long unsigned int *)uc;
-    for (int i = 0; i < ARRAY_COUNT; i++) uc_int[i] = rand() % INT64_MAX;
+    for (int i = 0; i < ARRAY_COUNT; i++) uc_int[i] = rand() % INT32_MAX;
     for (int loop = 0; loop < 10; loop++) {
         unsigned long sum = 0;
         unsigned long tmp = 0;
