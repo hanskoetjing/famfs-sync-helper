@@ -11,6 +11,7 @@
 #include <regex.h>
 
 #define VERSION_SIZE (512 * 1024) - 1
+#define FILE_SIZE (1 * 1024 * 1024)
 
 int match_filename(char *filename, char *entry) {
     char front[] = "^";
@@ -44,6 +45,12 @@ char **get_entries(char *version_entries, char *filename, int *num_of_entries, i
 }
 
 int main(int argc, char **argv) {
+
+    if (argc < 3) {
+        perror("Missing arguments");
+        return 1;
+    }
+
     int version_fd = open(argv[1], O_RDWR);
     if (version_fd < 0) {
         perror("open version file");
@@ -63,19 +70,94 @@ int main(int argc, char **argv) {
 
     char *old_version_entries = malloc(sizeof(char) * version_entries_length + 1);
     snprintf(old_version_entries, version_entries_length + 1, "%s", version_entries);
-
+    printf("waiting for changes\n");
+    int i = 0;
+    int a = 0, b = 0;
+    int num_of_entries = 0;
+    int num_of_old_entries = 0;
     while (1) {
-        if (version_entries_length > 0) {
-            int num_of_entries = 0;
-            int position = -1;
-            //char **entries = get_entries(version_entries, "", &num_of_entries, &position);            
-            
-            
-        }
         if (strcmp(old_version_entries, version_entries) != 0) {
             printf("old: %s\n", old_version_entries);
             printf("now: %s\n", version_entries);
-            break;
+            
+            char **new_entries = get_entries(version_entries, "", &num_of_entries, &b);
+            char **old_entries = get_entries(old_version_entries, "", &num_of_old_entries, &b);
+            int num_of_changed_file = 0;
+            
+            int *changes = (int *)malloc(sizeof(int) * num_of_entries);
+            for (int j = 0; j < num_of_entries; j++) {
+                if (strcmp(new_entries[j], old_entries[j]) != 0) {
+                    changes[a] = j;
+                    a++;
+                }
+            }
+            if (num_of_entries > num_of_old_entries) {
+                changes[a] = num_of_entries - 1;
+                a++;
+            }
+            
+            snprintf(old_version_entries, version_entries_length + 1, "%s", version_entries);
+            char *dir_path;
+            if (!dir_path) {
+                if (argv[2][strlen(argv[2]) - 1] != '/') {
+                    dir_path = (char *)malloc(sizeof(char) * strlen(argv[2]) + 1);
+                    snprintf(dir_path, strlen(argv[2]) + 2, "%s/", argv[2]);
+                } else {
+                    dir_path = (char *)malloc(sizeof(char) * strlen(argv[2]));
+                    snprintf(dir_path, strlen(argv[2]) + 1, "%s", argv[2]);
+                }
+            }
+            printf("DEBUG: %s\n", dir_path);
+            //assuming only one changes at a time
+            char *changed_entry = (char *)malloc(sizeof(char) * strlen(new_entries[changes[0]]) + 1);
+            snprintf(changed_entry, strlen(new_entries[changes[0]]), "%s", new_entries[changes[0]]);
+            char *changed_filename = strtok(changed_entry, ",");
+            char *full_path = (char *)malloc(sizeof(char) * strlen(dir_path) + strlen(changed_filename) + 1);
+            snprintf(full_path, strlen(dir_path) + strlen(changed_filename) + 1, "%s%s", dir_path, changed_filename);
+            printf("%s\n", full_path);
+            free(changed_entry);
+            free(new_entries);
+            free(old_entries);
+            free(changes);
+            
+            
+            int fd = open(full_path, O_RDWR);
+            if (fd < 0) {
+                perror("open version file");
+                return 1;
+            }
+            free(full_path);
+            
+            void *data_map = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+            if (data_map == MAP_FAILED) {
+                perror("mmap data");
+                printf("errno: %d\n", errno);
+                close(version_fd);
+                return 1;
+            }
+            volatile long unsigned int *uc_int = (volatile long unsigned int *)data_map;
+            for (int loop = 0; loop < 10; loop++) {
+                unsigned long sum = 0;
+                unsigned long tmp = 0;
+                for (int i = 0; i < 3; i++) {
+                    tmp = uc_int[loop];
+                }
+                printf(" read value: %lu\n", tmp);
+            }
+
+            munmap(data_map, FILE_SIZE);
+            close(fd);
+            i++;
+            num_of_entries = 0;
+            num_of_old_entries = 0;
+            a = 0;
+            
+            if (i == 10) {
+                free(dir_path);
+                break;
+            }
+        } else {
+            sleep(1);
         }
         
 
