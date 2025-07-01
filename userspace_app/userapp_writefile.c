@@ -3,12 +3,9 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <stdint.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <errno.h>
-#include <emmintrin.h> 
 #include <time.h>
 #include <x86intrin.h>
 #include <string.h>
@@ -20,7 +17,7 @@
 #define PAGE_COUNT (1 * 1024 * 1024 / PAGE_SIZE)
 #define ARRAY_COUNT (1 * 1024 * 1024 / sizeof(long unsigned int))
 
-#define VERSION_SIZE (500 * 1024) - 1
+#define VERSION_SIZE (512 * 1024) - 1
 #define VERSION_PAGE_COUNT (VERSION_SIZE / PAGE_SIZE)
 
 static __attribute__((always_inline)) inline uint64_t read_tsc(void) {
@@ -42,6 +39,24 @@ int match_filename(char *filename, char *entry) {
     return !match;
 }
 
+char **get_entries(char *version_entries, char *filename, int *num_of_entries, int *position) {
+    char *v_entries = (char *)malloc(VERSION_SIZE);
+    snprintf(v_entries, VERSION_SIZE, "%s", version_entries);
+    char *v_entry = strtok(v_entries, ";");
+    char **entries = malloc(128 * sizeof(char *));
+    while(v_entry != NULL) {
+        entries[*num_of_entries] = malloc(sizeof(char) * strlen(v_entry));
+        snprintf(entries[*num_of_entries], strlen(v_entry) + 1, "%s", v_entry);
+        if (match_filename(filename, v_entry)) {
+            *position = *num_of_entries;
+        }
+        v_entry = strtok(NULL, ";");
+        (*num_of_entries)++;
+    }
+    free(v_entries);
+    return entries;
+}
+
 int write_version(char *version_filename, char *arg_file_name) {
         int version_fd = open(version_filename, O_RDWR);
         if (version_fd < 0) {
@@ -58,7 +73,7 @@ int write_version(char *version_filename, char *arg_file_name) {
         }
 
         volatile char *version_entries = (volatile char *)version_map;
-        char **entries = malloc(128 * sizeof(char *));
+        
         char *filepath_arg = (char *)malloc(strlen(arg_file_name) + 1);
         strcpy(filepath_arg, arg_file_name);
         char *filepath = strtok(filepath_arg, "/");
@@ -72,37 +87,19 @@ int write_version(char *version_filename, char *arg_file_name) {
         if (version_entries_length > 0) {
             int num_of_entries = 0;
             int position = -1;
-            char *v_entries = (char *)malloc(VERSION_SIZE);
-            char *filename_entry = (char *)malloc(sizeof(filename) + 2);
-            snprintf(filename_entry, sizeof(filename) + 2, "%s", filename);
-            strcat(filename_entry, ",");
-            snprintf(v_entries, VERSION_SIZE, "%s", version_entries);
-            char *v_entry = strtok(v_entries, ";");
-            while(v_entry != NULL) {
-                entries[num_of_entries] = malloc(sizeof(char) * strlen(v_entry));
-                snprintf(entries[num_of_entries], strlen(v_entry) + 1, "%s", v_entry);
-                if (match_filename(filename, v_entry)) {
-                    position = num_of_entries;
-                }
-                v_entry = strtok(NULL, ";");
-                num_of_entries++;
-            }
+            char **entries = get_entries(version_entries, filename, &num_of_entries, &position);            
+            
             if (position == -1) { //new file
                 char * new_entry = malloc(sizeof(char) * 65);
                 snprintf(new_entry, 64, "%s,%d;", filename,1);
                 strcat(version_entries, new_entry);
                 free(new_entry);
             } else { //existing file
-                char **this_entry_parsed = malloc(sizeof(char *));
-                char *this_entry = malloc(sizeof(entries[position]));
-                snprintf(this_entry, sizeof(entries[position]), "%s", entries[position]);
-                char *version = strtok(this_entry, ",");
+                char *version = strtok(entries[position], ",");
                 version = strtok(NULL, ",");
                 long int file_version = strtol(version, NULL, 10);
                 snprintf(entries[position], VERSION_SIZE, "%s,%d", filename,++file_version);
-                free(this_entry_parsed);
-                free(this_entry);
-
+                
                 char *new_version_entries = (char *)malloc(VERSION_SIZE);
                 for (int i = 0; i < num_of_entries; i++) {
                     strcat(new_version_entries, strcat(entries[i], ";"));
@@ -110,12 +107,6 @@ int write_version(char *version_filename, char *arg_file_name) {
                 snprintf(version_entries, VERSION_SIZE, "%s", new_version_entries);
                 free(new_version_entries);
             }
-            free(v_entries);
-            free(filename_entry);
-            for (int i = 0; i < num_of_entries; i++) {
-                free(entries[i]);
-            }
-            free(entries);
         } else {
             char *ver_entry = (char *)malloc(65);
             snprintf(ver_entry, 64, "%s,%d;", filename,1);
