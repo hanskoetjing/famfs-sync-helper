@@ -37,8 +37,9 @@ int match_filename(char *filename, char *entry) {
 
     regex_t regex;
     regcomp(&regex, match_criterion, REG_EXTENDED);
-    printf("%d\n", regexec(&regex, entry, 0, NULL, 0));
-    return !regexec(&regex, entry, 0, NULL, 0);
+    int match = regexec(&regex, entry, 0, NULL, 0);
+    free(match_criterion);
+    return !match;
 }
 
 int write_version(char *version_filename, char *arg_file_name) {
@@ -90,7 +91,7 @@ int write_version(char *version_filename, char *arg_file_name) {
                 char * new_entry = malloc(sizeof(char) * 65);
                 snprintf(new_entry, 64, "%s,%d;", filename,1);
                 strcat(version_entries, new_entry);
-                num_of_entries++;
+                free(new_entry);
             } else { //existing file
                 char **this_entry_parsed = malloc(sizeof(char *));
                 char *this_entry = malloc(sizeof(entries[position]));
@@ -109,8 +110,12 @@ int write_version(char *version_filename, char *arg_file_name) {
                 snprintf(version_entries, VERSION_SIZE, "%s", new_version_entries);
                 free(new_version_entries);
             }
-            
-
+            free(v_entries);
+            free(filename_entry);
+            for (int i = 0; i < num_of_entries; i++) {
+                free(entries[i]);
+            }
+            free(entries);
         } else {
             char *ver_entry = (char *)malloc(65);
             snprintf(ver_entry, 64, "%s,%d;", filename,1);
@@ -119,6 +124,10 @@ int write_version(char *version_filename, char *arg_file_name) {
         }
         munmap(version_map, VERSION_SIZE);
         close(version_fd);
+        free(filepath_arg);
+        free(filename);
+
+        return 0;
 }
 
 int main(int argc, char *argv[]) {
