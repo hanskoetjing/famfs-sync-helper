@@ -106,7 +106,6 @@ int write_version(char *version_filename, char *arg_file_name) {
                 for (int i = 0; i < num_of_entries; i++) {
                     strcat(new_version_entries, strcat(entries[i], ";"));
                 }
-                printf("s%s\n",new_version_entries);
                 snprintf(version_entries, VERSION_SIZE, "%s", new_version_entries);
                 free(new_version_entries);
             }
