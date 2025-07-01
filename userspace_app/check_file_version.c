@@ -44,9 +44,22 @@ char **get_entries(char *version_entries, char *filename, int *num_of_entries, i
     return entries;
 }
 
+char * normalise_path(char * dir_path) {
+    int dir_path_length = strlen(dir_path);
+    char *dir_path_ret;
+    if (dir_path[dir_path_length - 1] != '/') {
+        dir_path_ret = (char *)malloc(sizeof(char) * dir_path_length + 1);
+        snprintf(dir_path_ret, dir_path_length + 2, "%s/", dir_path);
+    } else {
+        dir_path_ret = (char *)malloc(sizeof(char) * dir_path_length);
+        snprintf(dir_path_ret, dir_path_length + 1, "%s", dir_path);
+    }
+    return dir_path_ret;
+}
+
 int main(int argc, char **argv) {
 
-    if (argc < 3) {
+    if (argc < 4) {
         perror("Missing arguments");
         return 1;
     }
@@ -75,6 +88,9 @@ int main(int argc, char **argv) {
     int a = 0, b = 0;
     int num_of_entries = 0;
     int num_of_old_entries = 0;
+    char *dir_path = normalise_path(argv[2]);
+    char *dest_dir_path = normalise_path(argv[3]);
+
     while (1) {
         if (strcmp(old_version_entries, version_entries) != 0) {
             printf("old: %s\n", old_version_entries);
@@ -97,17 +113,7 @@ int main(int argc, char **argv) {
             }
             
             snprintf(old_version_entries, version_entries_length + 1, "%s", version_entries);
-            char *dir_path;
-            if (!dir_path) {
-                if (argv[2][strlen(argv[2]) - 1] != '/') {
-                    dir_path = (char *)malloc(sizeof(char) * strlen(argv[2]) + 1);
-                    snprintf(dir_path, strlen(argv[2]) + 2, "%s/", argv[2]);
-                } else {
-                    dir_path = (char *)malloc(sizeof(char) * strlen(argv[2]));
-                    snprintf(dir_path, strlen(argv[2]) + 1, "%s", argv[2]);
-                }
-            }
-            printf("DEBUG: %s\n", dir_path);
+
             //assuming only one changes at a time
             char *changed_entry = (char *)malloc(sizeof(char) * strlen(new_entries[changes[0]]) + 1);
             snprintf(changed_entry, strlen(new_entries[changes[0]]), "%s", new_entries[changes[0]]);
@@ -119,7 +125,6 @@ int main(int argc, char **argv) {
             free(new_entries);
             free(old_entries);
             free(changes);
-            
             
             int fd = open(full_path, O_RDWR);
             if (fd < 0) {
@@ -136,6 +141,7 @@ int main(int argc, char **argv) {
                 return 1;
             }
             volatile long unsigned int *uc_int = (volatile long unsigned int *)data_map;
+
             for (int loop = 0; loop < 10; loop++) {
                 unsigned long sum = 0;
                 unsigned long tmp = 0;
@@ -152,18 +158,15 @@ int main(int argc, char **argv) {
             num_of_old_entries = 0;
             a = 0;
             
-            if (i == 10) {
-                free(dir_path);
-                break;
-            }
+            if (i == 5) break;
         } else {
             sleep(1);
         }
         
 
     }
-
-
+    free(dir_path);
+    free(dest_dir_path);
     close(version_fd);
     return 0;
 }
