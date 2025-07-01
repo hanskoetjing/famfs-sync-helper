@@ -141,8 +141,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    write_version(argv[2], argv[1]);
-
     void *uc = mmap(NULL, PAGE_COUNT * PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (uc == MAP_FAILED) {
         perror("mmap");
@@ -169,5 +167,7 @@ int main(int argc, char *argv[]) {
 
     munmap(uc, PAGE_COUNT * PAGE_SIZE);
     close(fd);
+    write_version(argv[2], argv[1]);
+
     return 0;
 }

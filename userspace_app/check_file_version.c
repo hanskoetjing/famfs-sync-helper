@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 
             munmap(data_map, FILE_SIZE);
             close(fd);
-            i++;
+            //i++;
             num_of_entries = 0;
             num_of_old_entries = 0;
             a = 0;
