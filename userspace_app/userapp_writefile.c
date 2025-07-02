@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
     uint64_t bef_uc, aft_uc;
 
     if (argc < 2) {
-        perror("need file name");
+        perror("usage: <data_file_name> <version_file_name>");
         return 1;
     }
 
