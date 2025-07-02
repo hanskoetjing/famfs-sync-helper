@@ -93,12 +93,21 @@ static const struct file_operations fops = {
 int accept_connection(void *socket_in) {
 	struct socket *srv_socket = (struct socket *)socket_in;
 	struct socket *new_socket;
+	char buf[17];
 	pr_info("Waiting for connection\n");
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
 		if (new_socket) {
+			struct msghdr hdr;
+			memset(&hdr, 0, sizeof(hdr));
+			struct kvec iov = {
+				.iov_base = buf,
+				.iov_len = sizeof(buf)
+			};
 			pr_info("Got data!\n");
 			pr_info("%lu\n", new_socket->state);
+			int len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), MSG_DONTWAIT);
+			pr_info("%s\n", buf);
 		}
 	}
 	pr_info("done!\n");
