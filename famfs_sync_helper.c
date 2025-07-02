@@ -93,12 +93,11 @@ static const struct file_operations fops = {
 int accept_connection(void *socket_in) {
 	struct socket *srv_socket = (struct socket *)socket_in;
 	struct socket *new_socket;
-	char buf[17] =  {0};
+	char buf[16] =  {0};
 	pr_info("Waiting for connection\n");
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
 		if (new_socket) {
-			int state = 0;
 			struct msghdr hdr;
 			memset(&hdr, 0, sizeof(hdr));
 			struct kvec iov = {
@@ -107,21 +106,18 @@ int accept_connection(void *socket_in) {
 			};
 			pr_info("Got data! status: %d\n", new_socket->state);
 			int len = -1;
-			while (1) {
+			for(;;) {
 				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
-				if (len != -EAGAIN && len > 0) {
-					pr_info("%s\n", buf);
-				} else if (len == 0) {
-					sock_release(new_socket);
-					pr_info("Done receiving data\n");
+				if (len == 0) 
 					break;
-				} else {
+				else if (len != -EAGAIN)
+					pr_info("Data: %s\n", buf);
+				else
 					msleep(10);
-				}
-
+				
 			}
-			
-
+			sock_release(new_socket);
+			pr_info("Done receiving data\n");
 		}
 	}
 	pr_info("Acceptor thread exit. Bye\n");
@@ -138,14 +134,17 @@ static int __init ffs_helper_init(void) {
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
 
-	int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
-	if (ret < 0) return ret;
 	sin.sin_addr.s_addr = INADDR_ANY;
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(OPEN_TCP_PORT);
+	int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
+	if (ret < 0) return ret;
 	ret = server_socket->ops->bind(server_socket, (struct sockaddr *)&sin, sizeof(sin));
 	if (ret < 0) return ret;
 	ret = server_socket->ops->listen(server_socket, 1);
+	if (ret < 0) return ret;
+
+	//accept connection in separate thread
 	my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
 
 	return 0;
