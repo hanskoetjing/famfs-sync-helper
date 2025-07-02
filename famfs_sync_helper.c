@@ -93,7 +93,7 @@ static const struct file_operations fops = {
 int accept_connection(void *socket_in) {
 	struct socket *srv_socket = (struct socket *)socket_in;
 	struct socket *new_socket;
-	char buf[17];
+	char buf[17] =  {0};
 	pr_info("Waiting for connection\n");
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
@@ -107,8 +107,8 @@ int accept_connection(void *socket_in) {
 			pr_info("Got data!\n");
 			pr_info("%lu\n", new_socket->state);
 			int len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
-			pr_info("%d\n", len);
-			
+			pr_info("%s\n", buf);
+			sock_release(new_socket);
 		}
 	}
 	pr_info("done!\n");
@@ -139,12 +139,12 @@ static int __init ffs_helper_init(void) {
 }
 
 static void __exit ffs_helper_exit(void) {
+	kthread_stop(my_kthread);
+	tcp_server_stop();
 	device_destroy(ffs_class, dev_num);
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
-	kthread_stop(my_kthread);
-	tcp_server_stop();
 	pr_info("famfs_sync_helper: unloaded\n");
 }
 
