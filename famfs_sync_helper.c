@@ -106,13 +106,8 @@ int accept_connection(void *socket_in) {
 			};
 			pr_info("Got data!\n");
 			pr_info("%lu\n", new_socket->state);
-			int len = -1;
-			while (len < 0) {
-				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), MSG_DONTWAIT);
-				if (len = -11) {
-					msleep(100);
-				}
-			}
+			int len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
+			pr_info("%d\n", len);
 			
 		}
 	}
