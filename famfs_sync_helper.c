@@ -93,7 +93,8 @@ int accept_connection(void *socket_in) {
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
 		if (new_socket) {
-
+			pr_info("Got data!\n");
+			pr_info("%lu\n", new_socket->state);
 		}
 	}
 	return 0;
