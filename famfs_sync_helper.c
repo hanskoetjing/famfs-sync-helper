@@ -98,20 +98,33 @@ int accept_connection(void *socket_in) {
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
 		if (new_socket) {
+			int state = 0;
 			struct msghdr hdr;
 			memset(&hdr, 0, sizeof(hdr));
 			struct kvec iov = {
 				.iov_base = buf,
 				.iov_len = sizeof(buf)
 			};
-			pr_info("Got data!\n");
-			pr_info("%lu\n", new_socket->state);
-			int len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
-			pr_info("%s\n", buf);
-			sock_release(new_socket);
+			pr_info("Got data! status: %d\n", new_socket->state);
+			int len = -1;
+			while (1) {
+				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
+				if (len != -EAGAIN && len > 0) {
+					pr_info("%s\n", buf);
+				} else if (len == 0) {
+					sock_release(new_socket);
+					pr_info("Done receiving data\n");
+					break;
+				} else {
+					msleep(10);
+				}
+
+			}
+			
+
 		}
 	}
-	pr_info("done!\n");
+	pr_info("Acceptor thread exit. Bye\n");
 	return 0;
 }	
 
