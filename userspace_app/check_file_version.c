@@ -9,9 +9,12 @@
 #include <x86intrin.h>
 #include <string.h>
 #include <regex.h>
+#include <signal.h>
 
 #define VERSION_SIZE (512 * 1024) - 1
 #define FILE_SIZE (1 * 1024 * 1024)
+
+static volatile int run_app = 1;
 
 int match_filename(char *filename, char *entry) {
     char front[] = "^";
@@ -61,12 +64,30 @@ char * normalise_path(char * dir_path) {
     return dir_path_ret;
 }
 
+void intHandler(int dummy) {
+    run_app = 0;
+}
+
+void * map_file(int fd, long unsigned int size, long unsigned int offset) {
+    void *dest_data_map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+    if (dest_data_map == MAP_FAILED) {
+        perror("mmap data");
+        printf("errno: %d\n", errno);
+        return NULL;
+    }
+    return dest_data_map;
+}
+
 int main(int argc, char **argv) {
 
     if (argc < 4) {
         perror("Missing arguments. parameter: <version_file> <data_file_dir> <dest_data_dir_file>");
         return 1;
     }
+
+    signal(SIGSTOP, intHandler);
+    signal(SIGINT, intHandler);
+
 
     int version_fd = open(argv[1], O_RDWR);
     if (version_fd < 0) {
@@ -94,7 +115,7 @@ int main(int argc, char **argv) {
     char *dir_path = normalise_path(argv[2]);
     char *dest_dir_path = normalise_path(argv[3]);
 
-    while (1) {
+    while (run_app) {
         if (strcmp(old_version_entries, version_entries) != 0) {
             printf("old: %s\n", old_version_entries);
             printf("now: %s\n", version_entries);
@@ -103,8 +124,9 @@ int main(int argc, char **argv) {
             char **old_entries = get_entries(old_version_entries, "", &num_of_old_entries, &b);
             int num_of_changed_file = 0;
             int *changes = (int *)malloc(sizeof(int) * num_of_entries);
+            
             if (old_entries) {
-                for (int j = 0; j < num_of_entries; j++) {
+                for (int j = 0; j < num_of_old_entries; j++) {
                     if (strcmp(new_entries[j], old_entries[j]) != 0) {
                         changes[a] = j;
                         a++;
@@ -119,14 +141,14 @@ int main(int argc, char **argv) {
             }
             
             snprintf(old_version_entries, VERSION_SIZE, "%s", version_entries);
-            printf("%s\n", old_version_entries);
+            
             //assuming only one changes at a time
             char *changed_entry = (char *)malloc(sizeof(char) * strlen(new_entries[changes[0]]) + 1);
             snprintf(changed_entry, strlen(new_entries[changes[0]]), "%s", new_entries[changes[0]]);
             char *changed_filename = strtok(changed_entry, ",");
             char *full_path = (char *)malloc(sizeof(char) * strlen(dir_path) + strlen(changed_filename) + 1);
             snprintf(full_path, strlen(dir_path) + strlen(changed_filename) + 1, "%s%s", dir_path, changed_filename);
-            printf("%s\n", full_path);
+            printf("Src path: %s\n", full_path);
             
             free(new_entries);
             free(old_entries);
@@ -139,10 +161,8 @@ int main(int argc, char **argv) {
             }
             free(full_path);
             
-            void *data_map = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-            if (data_map == MAP_FAILED) {
-                perror("mmap data");
-                printf("errno: %d\n", errno);
+            void *data_map = map_file(fd, FILE_SIZE, 0);
+            if (data_map == NULL) {
                 close(version_fd);
                 return 1;
             }
@@ -169,10 +189,8 @@ int main(int argc, char **argv) {
             }
             free(full_path);
             
-            void *dest_data_map = mmap(NULL, FILE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, dest_fd, 0);
-            if (dest_data_map == MAP_FAILED) {
-                perror("mmap data");
-                printf("errno: %d\n", errno);
+            void *dest_data_map = map_file(dest_fd, FILE_SIZE, 0);
+            if (dest_data_map == NULL) {
                 close(version_fd);
                 return 1;
             }
@@ -190,6 +208,8 @@ int main(int argc, char **argv) {
             }
 
             munmap(data_map, FILE_SIZE);
+            munmap(dest_data_map, FILE_SIZE);
+            close(dest_fd);
             close(fd);
             //i++;
             num_of_entries = 0;
@@ -206,5 +226,7 @@ int main(int argc, char **argv) {
     free(dir_path);
     free(dest_dir_path);
     close(version_fd);
+    printf("done\n");
+
     return 0;
 }
