@@ -101,6 +101,7 @@ int accept_connection(void *socket_in) {
 			pr_info("%lu\n", new_socket->state);
 		}
 	}
+	pr_info("done!\n");
 	return 0;
 }	
 
@@ -132,6 +133,7 @@ static void __exit ffs_helper_exit(void) {
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
+	kthread_stop(my_kthread);
 	tcp_server_stop();
 	pr_info("famfs_sync_helper: unloaded\n");
 }
