@@ -8,14 +8,21 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/string.h>
+#include <linux/socket.h>
+#include <linux/kthread.h>
+#include <linux/delay.h> // untuk msleep()
+#include <linux/in.h>
+#include <net/sock.h>
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
-#define FILE_PATH_LENGTH        64
+#define FILE_PATH_LENGTH        128
+#define OPEN_TCP_PORT        57580
 
 #define IOCTL_MAGIC             0xCE
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
+#define IOCTL_TEST_NETWORK     _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct) //temporary
 
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
@@ -26,6 +33,12 @@ static int path_length;
 static dev_t dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
+static struct socket *server_socket, *client_socket;
+static struct sockaddr_in sin;
+// Pointer untuk menyimpan task_struct dari thread kita
+static struct task_struct *my_kthread;
+
+int accept_connection(void *socket_in);
 
 static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
 	struct famfs_sync_control_struct rw;
@@ -37,11 +50,12 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 	switch (cmd) {
 		case IOCTL_SET_FILE_PATH:
-			path_length = strscpy(ffs_file_path, rw.path, 64);
+			path_length = strscpy(ffs_file_path, rw.path, FILE_PATH_LENGTH);
 			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
 			break;
-		break;
+		case IOCTL_TEST_NETWORK:
 
+			break;
 		default:
 			return -ENOTTY;
 	}
@@ -59,11 +73,31 @@ static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
 	return 0;
 }
 
+static void tcp_server_stop(void) {
+    if (client_socket)
+        sock_release(client_socket);
+    if (server_socket)
+        sock_release(server_socket);
+}
+
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = ffs_helper_ioctl,
 	.mmap = ffs_helper_mmap,
 };
+
+int accept_connection(void *socket_in) {
+	struct socket *srv_socket = (struct socket *)socket_in;
+	struct socket *new_socket;
+	pr_info("Waiting for connection\n");
+	while(!kthread_should_stop()) {
+		kernel_accept(srv_socket, &new_socket, 0);
+		if (new_socket) {
+
+		}
+	}
+	return 0;
+}	
 
 static int __init ffs_helper_init(void) {	
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
@@ -74,6 +108,17 @@ static int __init ffs_helper_init(void) {
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
+
+	int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
+	if (ret < 0) return ret;
+	sin.sin_addr.s_addr = INADDR_ANY;
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(OPEN_TCP_PORT);
+	ret = server_socket->ops->bind(server_socket, (struct sockaddr *)&sin, sizeof(sin));
+	if (ret < 0) return ret;
+	ret = server_socket->ops->listen(server_socket, 1);
+	my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
+
 	return 0;
 }
 
@@ -82,7 +127,7 @@ static void __exit ffs_helper_exit(void) {
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
-
+	tcp_server_stop();
 	pr_info("famfs_sync_helper: unloaded\n");
 }
 
