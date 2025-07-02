@@ -74,10 +74,14 @@ static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
 }
 
 static void tcp_server_stop(void) {
+	if (server_socket) {
+		pr_info("release server socket");
+		sock_release(server_socket);
+	}
+        
     if (client_socket)
         sock_release(client_socket);
-    if (server_socket)
-        sock_release(server_socket);
+    
 }
 
 static const struct file_operations fops = {
