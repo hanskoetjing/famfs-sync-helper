@@ -23,7 +23,7 @@
 #define OPEN_TCP_PORT        57580
 #define MAX_BUFFER_NET			32
 
-#define IOCTL_MAGIC             0xCE
+#define IOCTL_MAGIC             0xCD
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 #define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
@@ -114,13 +114,15 @@ int accept_connection(void *socket_in) {
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
 		if (new_socket) {
+			struct sockaddr_in connected_client_addr;
 			struct msghdr hdr;
 			memset(&hdr, 0, sizeof(hdr));
 			struct kvec iov = {
 				.iov_base = buf,
 				.iov_len = sizeof(buf) - 1
 			};
-			pr_info("Got data! status: %d\n", new_socket->state);
+			kernel_getpeername(new_socket, (struct sockaddr *)&connected_client_addr);
+			pr_info("Connected! client: %pI4\n", connected_client_addr.sin_addr);
 			int len = -1;
 			for(;;) {
 				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf) - 1, 0);
