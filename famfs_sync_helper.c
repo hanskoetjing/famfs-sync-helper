@@ -19,6 +19,7 @@
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
 #define FILE_PATH_LENGTH        128
 #define OPEN_TCP_PORT        57580
+#define MAX_BUFFER_NET			32
 
 #define IOCTL_MAGIC             0xCE
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
@@ -91,9 +92,10 @@ static const struct file_operations fops = {
 };
 
 int accept_connection(void *socket_in) {
+	int ret_val = 0;
 	struct socket *srv_socket = (struct socket *)socket_in;
 	struct socket *new_socket;
-	char buf[16] =  {0};
+	char buf[MAX_BUFFER_NET] =  {0};
 	pr_info("Waiting for connection\n");
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
@@ -102,26 +104,30 @@ int accept_connection(void *socket_in) {
 			memset(&hdr, 0, sizeof(hdr));
 			struct kvec iov = {
 				.iov_base = buf,
-				.iov_len = sizeof(buf)
+				.iov_len = sizeof(buf) - 1
 			};
 			pr_info("Got data! status: %d\n", new_socket->state);
 			int len = -1;
 			for(;;) {
-				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf), 0);
-				if (len == 0) 
-					break;
-				else if (len != -EAGAIN)
+				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf) - 1, 0);
+				if (len > 0) {
 					pr_info("Data: %s\n", buf);
-				else
+				} else if (len == 0) {
+					pr_info("Client closed connection,");
+					break;
+				} else if (len == -EAGAIN) {
 					msleep(10);
-				
+				} else {
+					ret_val = len;
+					break;
+				}				
 			}
 			sock_release(new_socket);
 			pr_info("Done receiving data\n");
 		}
 	}
 	pr_info("Acceptor thread exit. Bye\n");
-	return 0;
+	return ret_val;
 }	
 
 static int __init ffs_helper_init(void) {	
