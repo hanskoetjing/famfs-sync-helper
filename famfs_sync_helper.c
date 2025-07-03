@@ -76,9 +76,9 @@ void sendMessage(char *message) {
 		memset(&hdr, 0, sizeof(hdr));
 		struct kvec iov = {
 			.iov_base = message,
-			.iov_len = sizeof(message)
+			.iov_len = sizeof(msg)
 		};
-		kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(message));
+		kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(msg));
 	}
 }
 
