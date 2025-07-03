@@ -14,9 +14,11 @@ static struct socket *client_socket;
 static struct sockaddr_in client_sockaddr;
 
 /**
- * X
- * sys_propagate_nice - trickle-down nice-increment to descendants
- * @increment: nice-increment for calling process
+ * single_send_offset_data
+ * single_send_offset_data - one shot of sending data to specific ip and port using TCP
+ * @server_address:IPv4 address
+ * @port: port number
+ * @data: data to be send
  *
  * Return: 0 on success. Error otherwise.
  */
@@ -60,6 +62,15 @@ SYSCALL_DEFINE3(single_send_offset_data, char *, server_address, int, port, char
     return ret;
 }
 
+
+/**
+ * start_tcp_client
+ * start_tcp_client - starting a tcp client for continuous connection (for one shot, use the  single_send_offset_data)
+ * @server_address:IPv4 address
+ * @port: port number
+ *
+ * Return: 0 on success. Error otherwise.
+ */
 SYSCALL_DEFINE2(start_tcp_client, char *, server_address, int, port)
 {
     int ret = 0;
@@ -86,6 +97,13 @@ SYSCALL_DEFINE2(start_tcp_client, char *, server_address, int, port)
     return ret;
 }
 
+/**
+ * send_data
+ * send_data - send data to previously connected client socket
+ * @data:data to be sent
+ *
+ * Return: 0 on success. Error otherwise.
+ */
 SYSCALL_DEFINE1(send_data, char *, data)
 {
     int ret = 0;
@@ -109,6 +127,13 @@ SYSCALL_DEFINE1(send_data, char *, data)
     return ret;
 }
 
+/**
+ * stop_tcp_client
+ * stop_tcp_client - close opened socket. If a continuous connection established, please call this to close it. 
+ * No need to call this if using the single shot version
+ *
+ * Return: 0 on success. Error otherwise.
+ */
 SYSCALL_DEFINE0(stop_tcp_client)
 {
     int ret = 0;
