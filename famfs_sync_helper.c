@@ -59,6 +59,9 @@ static int tcp_client_start(void) {
 		if (ret_ip == 0) return -EINVAL;
 		ret = client_socket->ops->connect(client_socket, (struct sockaddr *)&client_sockaddr, sizeof(client_sockaddr), 0);
 		if (ret < 0) return ret;
+	} else {
+		pr_info("There is a client socket");
+		ret = -1;
 	}
 	return ret;
 }
@@ -109,7 +112,7 @@ int accept_connection(void *socket_in) {
 	int ret_val = 0;
 	struct socket *srv_socket = (struct socket *)socket_in;
 	struct socket *new_socket;
-	char buf[MAX_BUFFER_NET] =  {0};
+	char buf[MAX_BUFFER_NET] = {0};
 	pr_info("Waiting for connection\n");
 	while(!kthread_should_stop()) {
 		kernel_accept(srv_socket, &new_socket, 0);
@@ -137,7 +140,9 @@ int accept_connection(void *socket_in) {
 				} else {
 					ret_val = len;
 					break;
-				}				
+				}
+				//overwrite buf data with NULL char
+				memset(buf, 0, sizeof(buf));			
 			}
 			sock_release(new_socket);
 			pr_info("Done receiving data\n");
@@ -168,6 +173,7 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
 			break;
 		case IOCTL_SETUP_NETWORK:
+			memset(ip_4_addr, 0, sizeof(ip_4_addr));
 			path_length = strscpy(ip_4_addr, rw.path, 16);
 			pr_info("Server IP v4 address: %s\n", ip_4_addr);
 			break;
