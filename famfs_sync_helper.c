@@ -60,7 +60,7 @@ static int tcp_client_start(void) {
 		ret = client_socket->ops->connect(client_socket, (struct sockaddr *)&client_sockaddr, sizeof(client_sockaddr), 0);
 		if (ret < 0) return ret;
 	} else {
-		pr_info("There is a client socket");
+		pr_info("There is a client socket\n");
 		ret = -1;
 	}
 	return ret;
@@ -84,7 +84,7 @@ void sendMessage(char *message) {
 
 static void tcp_client_stop(void) {
 	if (client_socket) {
-		pr_info("Disconnect from server %s port %d", ip_4_addr, OPEN_TCP_PORT);
+		pr_info("Disconnect from server %s port %d\n", ip_4_addr, OPEN_TCP_PORT);
 		sock_release(client_socket);
 		client_socket = NULL;
 	}
@@ -139,7 +139,7 @@ int accept_connection(void *socket_in) {
 				if (len > 0) {
 					pr_info("Data: %s\n", buf);
 				} else if (len == 0) {
-					pr_info("Client closed connection,");
+					pr_info("Client closed connection.\n");
 					break;
 				} else if (len == -EAGAIN) {
 					msleep(10);int accept_connection(void *socket_in);
@@ -152,6 +152,7 @@ int accept_connection(void *socket_in) {
 				memset(buf, 0, sizeof(buf));			
 			}
 			sock_release(new_socket);
+			new_socket = NULL;
 			pr_info("Done receiving data\n");
 		}
 	}
