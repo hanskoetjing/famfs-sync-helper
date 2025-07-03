@@ -13,6 +13,8 @@
 #include <linux/delay.h> // untuk msleep()
 #include <linux/in.h>
 #include <net/sock.h>
+#include <linux/inet.h>
+#include <linux/types.h>
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
@@ -23,7 +25,8 @@
 
 #define IOCTL_MAGIC             0xCE
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
-#define IOCTL_TEST_NETWORK     _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct) //temporary
+#define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
+#define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
 
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
@@ -36,9 +39,9 @@ static struct cdev ffs_cdev;
 static struct class *ffs_class;
 static struct socket *server_socket, *client_socket;
 static struct sockaddr_in sin;
-// Pointer untuk menyimpan task_struct dari thread kita
+static struct sockaddr_in client_sockaddr;
 static struct task_struct *my_kthread;
-
+static char ip_4_addr[16];
 int accept_connection(void *socket_in);
 
 static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
@@ -54,8 +57,14 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 			path_length = strscpy(ffs_file_path, rw.path, FILE_PATH_LENGTH);
 			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
 			break;
+		case IOCTL_SETUP_NETWORK:
+			path_length = strscpy(ip_4_addr, rw.path, 16);
+			pr_info("Server IP v4 address: %s\n", ip_4_addr);
+			break;
 		case IOCTL_TEST_NETWORK:
-
+			tcp_client_start();
+			sendMessage(rw.path);
+			tcp_client_stop();
 			break;
 		default:
 			return -ENOTTY;
@@ -74,22 +83,71 @@ static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
 	return 0;
 }
 
-static void tcp_server_stop(void) {
-	if (server_socket) {
-		pr_info("release server socket");
-		sock_release(server_socket);
-	}
-        
-    if (client_socket)
-        sock_release(client_socket);
-    
-}
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = ffs_helper_ioctl,
 	.mmap = ffs_helper_mmap,
 };
+
+static int tcp_client_start(void) {
+	int ret = 0;
+	if (!client_socket) {
+		ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &client_socket);
+		if (ret < 0) return ret;
+		memset(&client_sockaddr, 0, sizeof(client_sockaddr));
+		//initialise client socket address
+		client_sockaddr.sin_family = AF_INET;
+		client_sockaddr.sin_port = htons(OPEN_TCP_PORT);
+		int ret_ip = in4_pton(ip_4_addr, INET_ADDRSTRLEN, (u8 *)&client_sockaddr.sin_addr.s_addr, -1, NULL);
+		if (ret_ip == 0) return -EINVAL;
+		ret = client_socket->ops->connect(client_socket, (struct sockaddr *)&client_sockaddr, sizeof(client_sockaddr), 0);
+		if (ret < 0) return ret;
+	}
+	return ret;
+}
+
+void sendMessage(char *message) {
+	struct msghdr hdr;
+	memset(&hdr, 0, sizeof(hdr));
+	struct kvec iov = {
+		.iov_base = message,
+		.iov_len = sizeof(message)
+	};
+	int ret = kernel_sendmsg(&client_socket, &hdr, &iov, 1, strlen(message));
+}
+
+static void tcp_client_stop(void) {
+	if (client_socket) {
+		pr_info("Disconnect from server %s port %d", ip_4_addr, OPEN_TCP_PORT);
+		sock_release(client_socket);
+	}
+}
+
+static int tcp_server_start(void) {
+	int ret = 0;
+	if (!server_socket) {
+		pr_info("Start TCP server on port %d\n", OPEN_TCP_PORT);
+		
+		//initialise socket address
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_addr.s_addr = INADDR_ANY;
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(OPEN_TCP_PORT);
+
+		//create socket, bind, and listen
+		ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
+		if (ret < 0) return ret;
+		ret = server_socket->ops->bind(server_socket, (struct sockaddr *)&sin, sizeof(sin));
+		if (ret < 0) return ret;
+		ret = server_socket->ops->listen(server_socket, 1);
+		if (ret < 0) return ret;
+
+		//accept connection inkernel_sendmsg separate thread
+		my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
+	}
+	return ret;
+}
 
 int accept_connection(void *socket_in) {
 	int ret_val = 0;
@@ -128,7 +186,14 @@ int accept_connection(void *socket_in) {
 	}
 	pr_info("Acceptor thread exit. Bye\n");
 	return ret_val;
-}	
+}
+
+static void tcp_server_stop(void) {
+	if (server_socket) {
+		pr_info("Release server socket on port %d\n", OPEN_TCP_PORT);
+		sock_release(server_socket);
+	}
+}
 
 static int __init ffs_helper_init(void) {	
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
@@ -139,19 +204,7 @@ static int __init ffs_helper_init(void) {
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
-
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(OPEN_TCP_PORT);
-	int ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
-	if (ret < 0) return ret;
-	ret = server_socket->ops->bind(server_socket, (struct sockaddr *)&sin, sizeof(sin));
-	if (ret < 0) return ret;
-	ret = server_socket->ops->listen(server_socket, 1);
-	if (ret < 0) return ret;
-
-	//accept connection in separate thread
-	my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
+	tcp_server_start();
 
 	return 0;
 }
