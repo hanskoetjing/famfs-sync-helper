@@ -43,52 +43,8 @@ static struct sockaddr_in client_sockaddr;
 static struct task_struct *my_kthread;
 static char ip_4_addr[16];
 int accept_connection(void *socket_in);
+void sendMessage (char *message);
 
-static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
-	struct famfs_sync_control_struct rw;
-
-	if (copy_from_user(&rw, (void __user *)arg, sizeof(rw)))
-		return -EFAULT;
-
-	pr_info("Path: %s\n", rw.path);
-
-	switch (cmd) {
-		case IOCTL_SET_FILE_PATH:
-			path_length = strscpy(ffs_file_path, rw.path, FILE_PATH_LENGTH);
-			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
-			break;
-		case IOCTL_SETUP_NETWORK:
-			path_length = strscpy(ip_4_addr, rw.path, 16);
-			pr_info("Server IP v4 address: %s\n", ip_4_addr);
-			break;
-		case IOCTL_TEST_NETWORK:
-			tcp_client_start();
-			sendMessage(rw.path);
-			tcp_client_stop();
-			break;
-		default:
-			return -ENOTTY;
-	}
-
-	return 0;
-}
-
-static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
-
-	if (strcmp(DUMMY_FILE_PATH, ffs_file_path)){
-		pr_info("Please set the file path first\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
-static const struct file_operations fops = {
-	.owner = THIS_MODULE,
-	.unlocked_ioctl = ffs_helper_ioctl,
-	.mmap = ffs_helper_mmap,
-};
 
 static int tcp_client_start(void) {
 	int ret = 0;
@@ -114,7 +70,7 @@ void sendMessage(char *message) {
 		.iov_base = message,
 		.iov_len = sizeof(message)
 	};
-	int ret = kernel_sendmsg(&client_socket, &hdr, &iov, 1, strlen(message));
+	kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(message));
 }
 
 static void tcp_client_stop(void) {
@@ -174,7 +130,8 @@ int accept_connection(void *socket_in) {
 					pr_info("Client closed connection,");
 					break;
 				} else if (len == -EAGAIN) {
-					msleep(10);
+					msleep(10);int accept_connection(void *socket_in);
+
 				} else {
 					ret_val = len;
 					break;
@@ -194,6 +151,52 @@ static void tcp_server_stop(void) {
 		sock_release(server_socket);
 	}
 }
+
+static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+	struct famfs_sync_control_struct rw;
+
+	if (copy_from_user(&rw, (void __user *)arg, sizeof(rw)))
+		return -EFAULT;
+
+	pr_info("Path: %s\n", rw.path);
+
+	switch (cmd) {
+		case IOCTL_SET_FILE_PATH:
+			path_length = strscpy(ffs_file_path, rw.path, FILE_PATH_LENGTH);
+			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
+			break;
+		case IOCTL_SETUP_NETWORK:
+			path_length = strscpy(ip_4_addr, rw.path, 16);
+			pr_info("Server IP v4 address: %s\n", ip_4_addr);
+			break;
+		case IOCTL_TEST_NETWORK:
+			tcp_client_start();
+			sendMessage(rw.path);
+			tcp_client_stop();
+			break;
+		default:
+			return -ENOTTY;
+	}
+
+	return 0;
+}
+
+static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
+
+	if (strcmp(DUMMY_FILE_PATH, ffs_file_path)){
+		pr_info("Please set the file path first\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+static const struct file_operations fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = ffs_helper_ioctl,
+	.mmap = ffs_helper_mmap,
+};
 
 static int __init ffs_helper_init(void) {	
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
