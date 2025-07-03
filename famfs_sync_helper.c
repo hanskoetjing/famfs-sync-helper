@@ -122,7 +122,7 @@ int accept_connection(void *socket_in) {
 				.iov_len = sizeof(buf) - 1
 			};
 			kernel_getpeername(new_socket, (struct sockaddr *)&connected_client_addr);
-			pr_info("Connected! client: %pI4\n", connected_client_addr.sin_addr);
+			pr_info("Connected! client: %pI4\n", &connected_client_addr.sin_addr);
 			int len = -1;
 			for(;;) {
 				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf) - 1, 0);
