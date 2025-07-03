@@ -67,19 +67,26 @@ static int tcp_client_start(void) {
 }
 
 void sendMessage(char *message) {
-	struct msghdr hdr;
-	memset(&hdr, 0, sizeof(hdr));
-	struct kvec iov = {
-		.iov_base = message,
-		.iov_len = sizeof(message)
-	};
-	kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(message));
+	char msg[32] = {0};
+	int len = strscpy(msg, message, sizeof(msg));
+	pr_info("Sending message %s length %lu\n", msg, len);
+
+	if (client_socket) {
+		struct msghdr hdr;
+		memset(&hdr, 0, sizeof(hdr));
+		struct kvec iov = {
+			.iov_base = message,
+			.iov_len = sizeof(message)
+		};
+		kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(message));
+	}
 }
 
 static void tcp_client_stop(void) {
 	if (client_socket) {
 		pr_info("Disconnect from server %s port %d", ip_4_addr, OPEN_TCP_PORT);
 		sock_release(client_socket);
+		client_socket = NULL;
 	}
 }
 
@@ -156,6 +163,7 @@ static void tcp_server_stop(void) {
 	if (server_socket) {
 		pr_info("Release server socket on port %d\n", OPEN_TCP_PORT);
 		sock_release(server_socket);
+		server_socket = NULL;
 	}
 }
 
