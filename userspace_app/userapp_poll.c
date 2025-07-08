@@ -12,6 +12,7 @@
 #include <regex.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
+#include <pthread.h>
 
 #define IOCTL_MAGIC       0xCD
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
@@ -25,10 +26,16 @@ static __attribute__((always_inline)) inline uint64_t read_tsc(void) {
     return __rdtscp(&aux);
 }
 
+int process_queue_data(char *queue_name) {
+    printf("%s\n", queue_name);
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     
     srand(time(NULL));
     uint64_t bef_uc, aft_uc;
+    pthread_t process_thread;
 
     if (argc != 3) {
         perror("usage: <data_file_name> <ip address>");
@@ -89,7 +96,10 @@ int main(int argc, char *argv[]) {
             int len = read(fd, buf, sizeof(buf));
             if (len > 0) {
                 buf[len] = 0;
-                printf("Event dari kernel: %s\n", buf);
+                printf("Event from kernel: %s\n", buf);
+                char data[32] = {0};
+                strncpy(data, buf, sizeof(buf));
+                pthread_create(&process_thread, NULL, process_queue_data, data);
             }
         }
     }
