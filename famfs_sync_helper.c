@@ -145,6 +145,8 @@ int accept_connection(void *socket_in) {
 				if (len > 0) {
 					memset(message, 0, sizeof(message));
 					strscpy(message, buf, sizeof(buf));
+					if (strncmp(message, "READ", sizeof(buf)))
+						ready = 1;
 					pr_info("Data: %s\n", buf);
 				} else if (len == 0) {
 					pr_info("Client closed connection.\n");
