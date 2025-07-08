@@ -26,9 +26,8 @@ static __attribute__((always_inline)) inline uint64_t read_tsc(void) {
     return __rdtscp(&aux);
 }
 
-int process_queue_data(char *queue_name) {
-    printf("%s\n", queue_name);
-    return 0;
+void * process_queue_data(void *queue_name) {
+    printf("%s\n", (char *)queue_name);
 }
 
 int main(int argc, char *argv[]) {
