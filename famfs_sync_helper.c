@@ -15,6 +15,9 @@
 #include <net/sock.h>
 #include <linux/inet.h>
 #include <linux/types.h>
+#include <linux/poll.h>
+#include <linux/wait.h>
+
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
@@ -42,6 +45,9 @@ static struct sockaddr_in sin;
 static struct sockaddr_in client_sockaddr;
 static struct task_struct *my_kthread;
 static char ip_4_addr[16];
+static wait_queue_head_t wq;
+static int ready = 0;
+char message[MAX_BUFFER_NET] = {0};
 int accept_connection(void *socket_in);
 void sendMessage (char *message);
 
@@ -137,6 +143,8 @@ int accept_connection(void *socket_in) {
 			for(;;) {
 				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf) - 1, 0);
 				if (len > 0) {
+					memset(message, 0, sizeof(message));
+					strscpy(message, buf, sizeof(buf));
 					pr_info("Data: %s\n", buf);
 				} else if (len == 0) {
 					pr_info("Client closed connection.\n");
@@ -198,21 +206,32 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	return 0;
 }
 
-static int ffs_helper_mmap(struct file *filp, struct vm_area_struct *vma) {
-
-	if (strcmp(DUMMY_FILE_PATH, ffs_file_path)){
-		pr_info("Please set the file path first\n");
-		return -EINVAL;
+static int ffs_helper_poll(struct file *file, struct poll_table *poll) {
+	poll_wait(file, &wq, poll);
+	if (ready) {
+		return POLLIN | POLLRDNORM; // Data ready to read
 	}
-
-	return 0;
+	return -EAGAIN;
 }
 
+static int ffs_helper_read(struct file *file, char __user *buf, size_t length, loff_t *offset) {
+	if (!ready) 
+		return -EAGAIN;
+	ready = !ready;
+	int msg_size = sizeof(message);
+	if (strncmp(message, "READ", msg_size)) {
+		if (copy_to_user(buf, message, msg_size)) 
+			return -EFAULT;
+	}
+
+	return msg_size;
+}
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = ffs_helper_ioctl,
-	.mmap = ffs_helper_mmap,
+	.poll = ffs_helper_poll,
+	.read = ffs_helper_read
 };
 
 static int __init ffs_helper_init(void) {	
