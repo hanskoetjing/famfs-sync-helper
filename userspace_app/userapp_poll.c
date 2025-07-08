@@ -44,7 +44,9 @@ int main(int argc, char *argv[]) {
     }
 
     struct famfs_sync_control_struct net_addr;
-    strcpy(net_addr.path, argv[2]);
+    char addr[16] = {0};
+    strncpy(addr, argv[2], sizeof(argv[2]) + 1);
+    strcpy(net_addr.path, addr);
 
     printf("%s\n", net_addr.path);
 

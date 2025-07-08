@@ -235,22 +235,31 @@ static const struct file_operations fops = {
 };
 
 static int __init ffs_helper_init(void) {	
+	//init char device
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
 	cdev_init(&ffs_cdev, &fops);
 	cdev_add(&ffs_cdev, dev_num, 1);
 	ffs_class = class_create(CLASS_NAME);
 	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
+
+	//init tcp and poll
+	tcp_server_start();
+	init_waitqueue_head(&wq);
+
+	//init others
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
-	tcp_server_start();
 
 	return 0;
 }
 
 static void __exit ffs_helper_exit(void) {
+	//stopping tcp connection stuff
 	kthread_stop(my_kthread);
 	tcp_server_stop();
+
+	//destroying char devices
 	device_destroy(ffs_class, dev_num);
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
