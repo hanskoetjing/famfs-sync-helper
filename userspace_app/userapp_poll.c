@@ -11,6 +11,7 @@
 #include <string.h>
 #include <regex.h>
 #include <sys/epoll.h>
+#include <sys/ioctl.h>
 
 #define IOCTL_MAGIC       0xCD
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
