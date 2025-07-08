@@ -75,7 +75,7 @@ static int tcp_client_start(void) {
 void sendMessage(char *message) {
 	char msg[32] = {0};
 	int len = strscpy(msg, message, sizeof(msg));
-	pr_info("Sending message %s length %lu\n", msg, len);
+	pr_info("Sending message %s length %d\n", msg, len);
 
 	if (client_socket) {
 		struct msghdr hdr;
@@ -206,7 +206,7 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	return 0;
 }
 
-static int ffs_helper_poll(struct file *file, struct poll_table *poll) {
+static unsigned int ffs_helper_poll(struct file *file, poll_table *poll) {
 	poll_wait(file, &wq, poll);
 	if (ready) {
 		return POLLIN | POLLRDNORM; // Data ready to read
@@ -214,7 +214,7 @@ static int ffs_helper_poll(struct file *file, struct poll_table *poll) {
 	return -EAGAIN;
 }
 
-static int ffs_helper_read(struct file *file, char __user *buf, size_t length, loff_t *offset) {
+static long int ffs_helper_read(struct file *file, char __user *buf, size_t length, loff_t *offset) {
 	if (!ready) 
 		return -EAGAIN;
 	ready = !ready;
