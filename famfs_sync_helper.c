@@ -70,10 +70,7 @@ static int tcp_server_start(void) {
 		if (ret < 0) return ret;
 
 		//accept connection inkernel_sendmsg separate thread
-		if (server_socket)
-			my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
-		else
-			ret = -EFAULT;
+		my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
 	}
 	return ret;
 }
@@ -130,6 +127,8 @@ int accept_connection(void *socket_in) {
 static void tcp_server_stop(void) {
 	if (server_socket) {
 		pr_info("Release server socket on port %d\n", OPEN_TCP_PORT);
+		if (my_kthread)
+			kthread_stop(my_kthread);
 		sock_release(server_socket);
 		server_socket = NULL;
 	}
