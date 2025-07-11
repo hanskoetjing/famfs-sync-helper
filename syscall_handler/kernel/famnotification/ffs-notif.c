@@ -6,15 +6,17 @@
 #include <linux/inet.h>
 #include <linux/types.h>
 
+static char ip_4_addr[16] = {0};
+static int port = 0;
 static struct socket *client_socket;
 static struct sockaddr_in client_sockaddr;
 
-SYSCALL_DEFINE2(tcp_client_start, char __user *, ip_v4_addr, int, port) {
-	char ip_4_addr[16] = {0};
+SYSCALL_DEFINE2(tcp_client_start, char __user *, ip_v4_addr, int, open_port) {
 	int ret = strncpy_from_user(ip_4_addr, ip_v4_addr, sizeof(ip_4_addr));
 	if (ret < 0) return -EFAULT;
 	if (ret >= sizeof(ip_4_addr) || ret == 0) return -EINVAL;
-	return tcp_client_start_impl(ip_4_addr, port);
+	port = open_port;
+	return tcp_client_start_impl(ip_4_addr, open_port);
 }
 
 SYSCALL_DEFINE1(send_message, char __user *, message) {
@@ -23,6 +25,10 @@ SYSCALL_DEFINE1(send_message, char __user *, message) {
 	if (ret < 0) return -EFAULT;
 	if (ret >= sizeof(message_buf) || ret == 0) return -EINVAL;
 	return send_message_impl(message_buf);
+}
+
+SYSCALL_DEFINE0(tcp_client_stop) {
+	return tcp_client_stop();
 }
 
 static int tcp_client_start_impl(char *ip_4_addr, int port) {
@@ -59,4 +65,14 @@ static int send_message_impl(char *message) {
 		};
 		return kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(msg));
 	}
+}
+
+static int tcp_client_stop(void) {
+	if (client_socket) {
+		pr_info("Disconnect from server %s port %d\n", ip_4_addr, port);
+		sock_release(client_socket);
+		client_socket = NULL;
+	}
+
+	return 0;
 }
