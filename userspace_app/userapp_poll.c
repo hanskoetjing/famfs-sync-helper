@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <linux/types.h>
+#include <sys/syscall.h>
 
 #define IOCTL_MAGIC       0xCD
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
@@ -33,10 +34,19 @@ int main(int argc, char *argv[]) {
     uint64_t bef_uc, aft_uc;
     pthread_t process_thread;
 
+    int ret = 0;
+    
     if (argc != 3) {
         perror("usage: <chr_dev_file_name> <port>");
         return 1;
     }
+
+    ret = syscall(548, "127.0.0.1", 57580);
+    printf("Syscall 548 returned: %d\n", ret);
+    ret = syscall(549, "HELLO WORLD");
+    printf("Syscall 549 returned: %d\n", ret);
+    ret = syscall(550);
+    printf("Syscall 550 returned: %d\n", ret);
 
     printf("Char dev file name: %s\n", argv[1]);
 
