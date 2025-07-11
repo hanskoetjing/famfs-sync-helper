@@ -106,8 +106,8 @@ int accept_connection(void *socket_in) {
 					pr_info("Client closed connection.\n");
 					break;
 				} else if (len == -EAGAIN) {
-					msleep(10);int accept_connection(void *socket_in);
-
+					msleep(10);
+					int accept_connection(void *socket_in);
 				} else {
 					ret_val = len;
 					break;
@@ -149,6 +149,8 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 			if (!rw.port) return -EINVAL;
 			port = rw.port;
 			pr_info("Server port: %d\n", port);
+			tcp_server_stop();
+			tcp_server_start();
 			break;
 		default:
 			return -ENOTTY;
