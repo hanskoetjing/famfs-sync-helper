@@ -70,7 +70,10 @@ static int tcp_server_start(void) {
 		if (ret < 0) return ret;
 
 		//accept connection inkernel_sendmsg separate thread
-		my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
+		if (server_socket)
+			my_kthread = kthread_run(accept_connection, (void *)server_socket, "accept_connection");
+		else
+			ret = -EFAULT;
 	}
 	return ret;
 }
