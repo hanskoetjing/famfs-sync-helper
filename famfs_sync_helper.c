@@ -18,7 +18,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 
-
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
@@ -42,11 +41,9 @@ static int path_length;
 static dev_t dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
-static struct socket *server_socket, *client_socket;
+static struct socket *server_socket;
 static struct sockaddr_in sin;
-static struct sockaddr_in client_sockaddr;
 static struct task_struct *my_kthread;
-static char ip_4_addr[16];
 static int port = 57580;
 static wait_queue_head_t wq;
 static int ready = 0;
