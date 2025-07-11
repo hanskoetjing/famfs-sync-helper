@@ -18,7 +18,7 @@
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 
 struct famfs_sync_control_struct {
-	char path[128];
+	char path[129];
 	int port;
 };
 
@@ -43,6 +43,7 @@ int main(int argc, char *argv[]) {
 
     ret = syscall(548, "127.0.0.1", 57580);
     printf("Syscall 548 returned: %d\n", ret);
+    if (ret != 0) syscall(550);
     ret = syscall(549, "HELLO WORLD");
     printf("Syscall 549 returned: %d\n", ret);
     ret = syscall(550);
