@@ -13,7 +13,7 @@ static struct sockaddr_in client_sockaddr;
 
 static int tcp_client_start_impl(char *ip_4_addr, int port);
 static int send_message_impl(char *message);
-static int tcp_client_stop_impl();
+static int tcp_client_stop_impl(void);
 
 SYSCALL_DEFINE2(tcp_client_start, char __user *, ip_v4_addr, int, open_port) {
 	int ret = strncpy_from_user(ip_4_addr, ip_v4_addr, sizeof(ip_4_addr));
@@ -59,7 +59,7 @@ static int send_message_impl(char *message) {
 	char msg[128] = {0};
 	int len = strscpy(msg, message, sizeof(msg));
 	pr_info("Sending message %s length %d\n", msg, len);
-
+	int ret = 0;
 	if (client_socket) {
 		struct msghdr hdr;
 		memset(&hdr, 0, sizeof(hdr));
@@ -67,8 +67,9 @@ static int send_message_impl(char *message) {
 			.iov_base = message,
 			.iov_len = sizeof(msg)
 		};
-		return kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(msg));
+		ret = kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(msg));
 	}
+	return ret;
 }
 
 static int tcp_client_stop_impl(void) {
