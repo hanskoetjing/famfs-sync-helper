@@ -24,7 +24,7 @@
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
 #define FILE_PATH_LENGTH        128
 #define OPEN_TCP_PORT        57580
-#define MAX_BUFFER_NET			32
+#define MAX_BUFFER_NET			128
 
 #define IOCTL_MAGIC             0xCD
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)

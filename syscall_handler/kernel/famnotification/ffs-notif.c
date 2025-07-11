@@ -11,6 +11,8 @@ static int port = 0;
 static struct socket *client_socket;
 static struct sockaddr_in client_sockaddr;
 
+#define MAX_BUFFER_NET			128
+
 static int tcp_client_start_impl(char *ip_4_addr, int port);
 static int send_message_impl(char *message);
 static int tcp_client_stop_impl(void);
@@ -56,7 +58,7 @@ static int tcp_client_start_impl(char *ip_4_addr, int port) {
 }
 
 static int send_message_impl(char *message) {
-	char msg[128] = {0};
+	char msg[MAX_BUFFER_NET] = {0};
 	int len = strscpy(msg, message, sizeof(msg));
 	pr_info("Sending message %s length %d\n", msg, len);
 	int ret = 0;
