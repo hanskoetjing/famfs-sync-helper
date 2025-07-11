@@ -4,29 +4,26 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <errno.h>
-#include <time.h>
-#include <x86intrin.h>
 #include <string.h>
-#include <regex.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <pthread.h>
+#include <assert.h>
+#include <sys/types.h>
+#include <linux/types.h>
 
 #define IOCTL_MAGIC       0xCD
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 
 struct famfs_sync_control_struct {
-	char path[129];
+	char path[128];
+	int port;
 };
 
-static __attribute__((always_inline)) inline uint64_t read_tsc(void) {
-    unsigned int aux;
-    return __rdtscp(&aux);
-}
-
 void * process_queue_data(void *queue_name) {
+    
+
     printf("%s\n", (char *)queue_name);
 }
 
@@ -37,7 +34,7 @@ int main(int argc, char *argv[]) {
     pthread_t process_thread;
 
     if (argc != 3) {
-        perror("usage: <data_file_name> <ip address>");
+        perror("usage: <chr_dev_file_name> <port>");
         return 1;
     }
 
@@ -52,9 +49,9 @@ int main(int argc, char *argv[]) {
     struct famfs_sync_control_struct net_addr;
     char addr[16] = {0};
     strncpy(addr, argv[2], sizeof(argv[2]) + 1);
-    strcpy(net_addr.path, addr);
+    net_addr.port = (int)strtol(argv[2], NULL, 10);
 
-    printf("%s\n", net_addr.path);
+    printf("Port: %d\n", net_addr.port);
 
     if (ioctl(fd, IOCTL_SETUP_NETWORK, &net_addr) < 0) {
         perror("ioctl set network server");
@@ -84,7 +81,7 @@ int main(int argc, char *argv[]) {
 
     char buf[32] = {0};
     while (1) {
-         struct epoll_event events[1];
+        struct epoll_event events[1];
         int n = epoll_wait(epfd, events, 1, -1); // Tunggu selamanya sampe ada event
         if (n < 0) {
             perror("epoll_wait");

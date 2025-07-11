@@ -25,6 +25,7 @@
 #define FILE_PATH_LENGTH        128
 #define OPEN_TCP_PORT        57580
 #define MAX_BUFFER_NET			128
+#define DEFAULT_PORT			57580
 
 #define IOCTL_MAGIC             0xCD
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
@@ -33,6 +34,7 @@
 
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
+	int port;
 };
 
 static char ffs_file_path[FILE_PATH_LENGTH + 1];
@@ -45,67 +47,22 @@ static struct sockaddr_in sin;
 static struct sockaddr_in client_sockaddr;
 static struct task_struct *my_kthread;
 static char ip_4_addr[16];
+static int port = 57580;
 static wait_queue_head_t wq;
 static int ready = 0;
 char message[MAX_BUFFER_NET] = {0};
 int accept_connection(void *socket_in);
-void sendMessage (char *message);
-
-
-static int tcp_client_start(void) {
-	int ret = 0;
-	if (!client_socket) {
-		ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &client_socket);
-		if (ret < 0) return ret;
-		memset(&client_sockaddr, 0, sizeof(client_sockaddr));
-		//initialise client socket address
-		client_sockaddr.sin_family = AF_INET;
-		client_sockaddr.sin_port = htons(OPEN_TCP_PORT);
-		int ret_ip = in4_pton(ip_4_addr, INET_ADDRSTRLEN, (u8 *)&client_sockaddr.sin_addr.s_addr, -1, NULL);
-		if (ret_ip == 0) return -EINVAL;
-		ret = client_socket->ops->connect(client_socket, (struct sockaddr *)&client_sockaddr, sizeof(client_sockaddr), 0);
-		if (ret < 0) return ret;
-	} else {
-		pr_info("There is a client socket\n");
-		ret = -1;
-	}
-	return ret;
-}
-
-void sendMessage(char *message) {
-	char msg[32] = {0};
-	int len = strscpy(msg, message, sizeof(msg));
-	pr_info("Sending message %s length %d\n", msg, len);
-
-	if (client_socket) {
-		struct msghdr hdr;
-		memset(&hdr, 0, sizeof(hdr));
-		struct kvec iov = {
-			.iov_base = message,
-			.iov_len = sizeof(msg)
-		};
-		kernel_sendmsg(client_socket, &hdr, &iov, 1, strlen(msg));
-	}
-}
-
-static void tcp_client_stop(void) {
-	if (client_socket) {
-		pr_info("Disconnect from server %s port %d\n", ip_4_addr, OPEN_TCP_PORT);
-		sock_release(client_socket);
-		client_socket = NULL;
-	}
-}
 
 static int tcp_server_start(void) {
 	int ret = 0;
 	if (!server_socket) {
-		pr_info("Start TCP server on port %d\n", OPEN_TCP_PORT);
+		pr_info("Start TCP server on port %d\n", port);
 		
 		//initialise socket address
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_addr.s_addr = INADDR_ANY;
 		sin.sin_family = AF_INET;
-		sin.sin_port = htons(OPEN_TCP_PORT);
+		sin.sin_port = htons(port);
 
 		//create socket, bind, and listen
 		ret = sock_create_kern(&init_net, AF_INET, SOCK_STREAM, IPPROTO_TCP, &server_socket);
@@ -192,14 +149,9 @@ static long ffs_helper_ioctl(struct file *file, unsigned int cmd, unsigned long 
 			pr_info("%d char copied to file_path. File path: %s\n", path_length, ffs_file_path);
 			break;
 		case IOCTL_SETUP_NETWORK:
-			memset(ip_4_addr, 0, sizeof(ip_4_addr));
-			path_length = strscpy(ip_4_addr, rw.path, 16);
-			pr_info("Server IP v4 address: %s\n", ip_4_addr);
-			break;
-		case IOCTL_TEST_NETWORK:
-			tcp_client_start();
-			sendMessage(rw.path);
-			tcp_client_stop();
+			if (!rw.port) return -EINVAL;
+			port = rw.port;
+			pr_info("Server port: %d\n", port);
 			break;
 		default:
 			return -ENOTTY;
