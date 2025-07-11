@@ -11,6 +11,10 @@ static int port = 0;
 static struct socket *client_socket;
 static struct sockaddr_in client_sockaddr;
 
+static int tcp_client_start_impl(char *ip_4_addr, int port);
+static int send_message_impl(char *message);
+static int tcp_client_stop_impl();
+
 SYSCALL_DEFINE2(tcp_client_start, char __user *, ip_v4_addr, int, open_port) {
 	int ret = strncpy_from_user(ip_4_addr, ip_v4_addr, sizeof(ip_4_addr));
 	if (ret < 0) return -EFAULT;
@@ -28,7 +32,7 @@ SYSCALL_DEFINE1(send_message, char __user *, message) {
 }
 
 SYSCALL_DEFINE0(tcp_client_stop) {
-	return tcp_client_stop();
+	return tcp_client_stop_impl();
 }
 
 static int tcp_client_start_impl(char *ip_4_addr, int port) {
@@ -67,7 +71,7 @@ static int send_message_impl(char *message) {
 	}
 }
 
-static int tcp_client_stop(void) {
+static int tcp_client_stop_impl(void) {
 	if (client_socket) {
 		pr_info("Disconnect from server %s port %d\n", ip_4_addr, port);
 		sock_release(client_socket);
