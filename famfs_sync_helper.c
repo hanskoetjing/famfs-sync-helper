@@ -219,7 +219,7 @@ static void __exit ffs_helper_exit(void) {
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
-	pr_info("famfs_sync_helper: unloaded\n");
+	pr_info("famfs_sync_helper: unloaded\n"); 
 }
 
 module_init(ffs_helper_init);
