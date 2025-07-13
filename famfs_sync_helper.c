@@ -147,8 +147,6 @@ int accept_connection(void *socket_in) {
 
 static void tcp_server_stop(void) {
 	if (server_socket) {
-		if (my_kthread)
-			kthread_stop(my_kthread);
 		pr_info("Release server socket on port %d\n", OPEN_TCP_PORT);
 		sock_release(server_socket);
 		server_socket = NULL;
