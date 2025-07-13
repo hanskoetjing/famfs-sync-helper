@@ -59,7 +59,7 @@ int check_commands(char *message);
 int check_commands(char *message) {
 	int result = -1;
 	for (int i = 0; commands[i] != NULL; i++) {
-		if (strncmp(message, commands[i], 4)) {
+		if (!strncmp(message, commands[i], 4)) {
 			result = i;
 			break;
 		}
