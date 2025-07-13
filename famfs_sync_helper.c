@@ -54,6 +54,7 @@ static wait_queue_head_t wq;
 static int ready = 0;
 char message[MAX_BUFFER_NET] = {0};
 int accept_connection(void *socket_in);
+int check_commands(char *message);
 
 int check_commands(char *message) {
 	int result = -1;
