@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     printf("Syscall 548 returned: %d\n", ret);
     if (ret != 0) syscall(550);
     ret = syscall(549, "HELLO WORLD");
+    ret = syscall(549, "SBGN");
     printf("Syscall 549 returned: %d\n", ret);
     ret = syscall(550);
     printf("Syscall 550 returned: %d\n", ret);
@@ -56,7 +57,7 @@ int main(int argc, char *argv[]) {
         perror("open");
         return 1;
     }
-
+    /*
     struct famfs_sync_control_struct net_addr;
     char addr[16] = {0};
     strncpy(addr, argv[2], sizeof(argv[2]) + 1);
@@ -69,13 +70,14 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
-
+    */
     int epfd = epoll_create1(0);
     if (epfd < 0) {
         perror("epoll_create1");
         close(fd);
         return 1;
     }
+    
 
 
     struct epoll_event ev;

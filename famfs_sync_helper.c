@@ -116,6 +116,7 @@ int accept_connection(void *socket_in) {
 					spin_lock(&ctr_lock);
 					memset(message, 0, sizeof(message));
 					strscpy(message, buf, sizeof(buf));
+					pr_info("is a command? %d\n", check_commands(message));
 					if (check_commands(message) != -1)
 						ready = 1;
 					spin_unlock(&ctr_lock);
