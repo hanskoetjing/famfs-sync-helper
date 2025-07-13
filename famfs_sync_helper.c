@@ -17,25 +17,30 @@
 #include <linux/types.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
+#include <linux/spinlock.h>
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
 #define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
 #define FILE_PATH_LENGTH        128
-#define OPEN_TCP_PORT        57580
-#define MAX_BUFFER_NET			128
-#define DEFAULT_PORT			57580
+#define OPEN_TCP_PORT           57580
+#define MAX_BUFFER_NET          128
+#define DEFAULT_PORT            57580
+#define COMMAND_LENGTH          4
 
 #define IOCTL_MAGIC             0xCD
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 #define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
 
+
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
 	int port;
 };
 
+static DEFINE_SPINLOCK(ctr_lock);
+static char *commands[] = {"SBGN", "REND", "SACK", "SNCK", NULL};
 static char ffs_file_path[FILE_PATH_LENGTH + 1];
 static int path_length;
 static dev_t dev_num;
@@ -49,6 +54,17 @@ static wait_queue_head_t wq;
 static int ready = 0;
 char message[MAX_BUFFER_NET] = {0};
 int accept_connection(void *socket_in);
+
+int check_commands(char *message) {
+	int result = -1;
+	for (int i = 0; commands[i] != NULL; i++) {
+		if (strncmp(message, message[i], 4)) {
+			result = i;
+			break;
+		}
+	}
+	return result;
+}
 
 static int tcp_server_start(void) {
 	int ret = 0;
@@ -97,10 +113,13 @@ int accept_connection(void *socket_in) {
 			for(;;) {
 				len = kernel_recvmsg(new_socket, &hdr, &iov, 1, sizeof(buf) - 1, 0);
 				if (len > 0) {
+					spin_lock(&ctr_lock);
 					memset(message, 0, sizeof(message));
 					strscpy(message, buf, sizeof(buf));
-					if (strncmp(message, "READ", sizeof(buf)))
+					if (check_commands(message) != -1)
 						ready = 1;
+					spin_unlock(&ctr_lock);
+					wake_up_interruptible(&wq);
 					pr_info("Data: %s\n", buf);
 				} else if (len == 0) {
 					pr_info("Client closed connection.\n");
@@ -172,13 +191,14 @@ static unsigned int ffs_helper_poll(struct file *file, poll_table *poll) {
 static long int ffs_helper_read(struct file *file, char __user *buf, size_t length, loff_t *offset) {
 	if (!ready) 
 		return -EAGAIN;
+	spin_lock(&ctr_lock);
 	ready = !ready;
 	int msg_size = sizeof(message);
-	if (strncmp(message, "READ", msg_size)) {
-		if (copy_to_user(buf, message, msg_size)) 
-			return -EFAULT;
+	if (copy_to_user(buf, message, msg_size) != 0) {
+		return -EFAULT;
 	}
-
+	memset(message, 0, sizeof(message));
+	spin_unlock(&ctr_lock);
 	return msg_size;
 }
 
