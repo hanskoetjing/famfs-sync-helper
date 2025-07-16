@@ -33,6 +33,8 @@
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 #define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
 
+extern struct bus_type dax_bus_type;
+
 
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
@@ -49,6 +51,7 @@ static struct class *ffs_class;
 static struct socket *server_socket;
 static struct sockaddr_in sin;
 static struct task_struct *my_kthread;
+static struct device *cxl_dax_dev;
 static int port = 57580;
 static wait_queue_head_t wq;
 static int ready = 0;
@@ -222,6 +225,7 @@ static int __init ffs_helper_init(void) {
 	init_waitqueue_head(&wq);
 
 	//init others
+	cxl_dax_dev = bus_find_device_by_name(&dax_bus_type, NULL, "dax0.0");
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
