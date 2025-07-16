@@ -53,7 +53,7 @@ static struct socket *server_socket;
 static struct sockaddr_in sin;
 static struct task_struct *my_kthread;
 static struct device *cxl_dax_device_device;
-static struct dax_device cxl_dax_device;
+static struct dax_device *cxl_dax_device;
 static struct dev_dax *cxl_dev_dax;
 static struct dax_region *region;
 static int port = 57580;
