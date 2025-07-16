@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/namei.h>
 #include <linux/path.h>
+#include <linux/dax.h>
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
@@ -52,7 +53,7 @@ static struct socket *server_socket;
 static struct sockaddr_in sin;
 static struct task_struct *my_kthread;
 static struct device *cxl_dax_device_device;
-static struct dax_device *cxl_dax_device;
+static struct dax_device cxl_dax_device;
 static struct dev_dax *cxl_dev_dax;
 static struct dax_region *region;
 static int port = 57580;
@@ -264,6 +265,9 @@ static int __init ffs_helper_init(void) {
 	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
 	if (!l)
 		pr_info("dax dev num: %d\n", dax_dev_num);
+	cxl_dax_device = dax_dev_get(dax_dev_num);
+	if (cxl_dax_device->flags)
+		pr_info("got dax_device\n");
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
