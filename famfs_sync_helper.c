@@ -18,6 +18,8 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
+#include <linux/namei.h>
+#include <linux/path.h>
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
@@ -33,8 +35,6 @@
 #define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
 #define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
 
-extern struct bus_type dax_bus_type;
-
 
 struct famfs_sync_control_struct {
 	char path[FILE_PATH_LENGTH + 1];
@@ -45,13 +45,16 @@ static DEFINE_SPINLOCK(ctr_lock);
 static char *commands[] = {"SBGN", "REND", "SACK", "SNCK", NULL};
 static char ffs_file_path[FILE_PATH_LENGTH + 1];
 static int path_length;
-static dev_t dev_num;
+static dev_t dev_num, dax_dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
 static struct socket *server_socket;
 static struct sockaddr_in sin;
 static struct task_struct *my_kthread;
-static struct device *cxl_dax_dev;
+static struct device *cxl_dax_device_device;
+static struct dax_device *cxl_dax_device;
+static struct dev_dax *cxl_dev_dax;
+static struct dax_region *region;
 static int port = 57580;
 static wait_queue_head_t wq;
 static int ready = 0;
@@ -212,6 +215,39 @@ static const struct file_operations fops = {
 	.read = ffs_helper_read
 };
 
+static int
+lookup_daxdev(const char *pathname, dev_t *devno)
+{
+	struct inode *inode;
+	struct path path;
+	int err;
+
+	if (!pathname || !*pathname)
+		return -EINVAL;
+
+	err = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	if (err)
+		return err;
+
+	inode = d_backing_inode(path.dentry);
+	if (!S_ISCHR(inode->i_mode)) {
+		err = -EINVAL;
+		goto out_path_put;
+	}
+
+	if (!may_open_dev(&path)) { /* had to export this */
+		err = -EACCES;
+		goto out_path_put;
+	}
+
+	 /* if it's dax, i_rdev is struct dax_device */
+	*devno = inode->i_rdev;
+
+out_path_put:
+	path_put(&path);
+	return err;
+}
+
 static int __init ffs_helper_init(void) {	
 	//init char device
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
@@ -225,7 +261,9 @@ static int __init ffs_helper_init(void) {
 	init_waitqueue_head(&wq);
 
 	//init others
-	cxl_dax_dev = bus_find_device_by_name(&dax_bus_type, NULL, "dax0.0");
+	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
+	if (!l)
+		pr_info("dax dev num: %d\n", dax_dev_num);
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
