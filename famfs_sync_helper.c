@@ -266,8 +266,9 @@ static int __init ffs_helper_init(void) {
 	if (!l)
 		pr_info("dax dev num: %d\n", dax_dev_num);
 	cxl_dax_device = dax_dev_get(dax_dev_num);
-	if (cxl_dax_device->flags)
+	if (cxl_dax_device)
 		pr_info("got dax_device\n");
+	cxl_dev_dax = container_of(cxl_dax_device, struct dax_dev, dax_dev);
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
