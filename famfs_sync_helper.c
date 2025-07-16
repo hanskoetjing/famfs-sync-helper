@@ -272,7 +272,7 @@ static int __init ffs_helper_init(void) {
 		pr_info("got dax_device\n");
 	cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
 	if (cxl_dev_dax)
-		pr_info("got cxl_dev_dax %p\n", cxl_dev_dax->region.res.start);
+		pr_info("got cxl_dev_dax %p\n", cxl_dev_dax->region->res.start);
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
