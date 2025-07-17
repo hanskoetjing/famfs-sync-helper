@@ -8,16 +8,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <linux/socket.h>
-#include <linux/kthread.h>
-#include <linux/delay.h> // untuk msleep()
-#include <linux/in.h>
-#include <net/sock.h>
-#include <linux/inet.h>
 #include <linux/types.h>
-#include <linux/poll.h>
-#include <linux/wait.h>
-#include <linux/spinlock.h>
 #include <linux/namei.h>
 #include <linux/path.h>
 #include <linux/dax.h>
@@ -26,23 +17,22 @@
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
-#define FILE_PATH_LENGTH        128
-#define OPEN_TCP_PORT           57580
-#define MAX_BUFFER_NET          128
-#define DEFAULT_PORT            57580
-#define COMMAND_LENGTH          4
+#define FILE_PATH_LENGTH        32
 
-#define IOCTL_MAGIC             0xCD
-#define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct famfs_sync_control_struct)
-#define IOCTL_SETUP_NETWORK     _IOW(IOCTL_MAGIC, 0x02, struct famfs_sync_control_struct)
-#define IOCTL_TEST_NETWORK      _IOW(IOCTL_MAGIC, 0x69, struct famfs_sync_control_struct)//temporary
+//temporary definition
+#define IVSHM_BASE_UC		    0xc080000000ULL
+#define IVSHM_SIZE              0x02000000ULL 
+//temporary definition end
+
+#define IOCTL_MAGIC             0xCC
+#define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct cxl_dev_path_struct)
 
 
-struct famfs_sync_control_struct {
-	char path[FILE_PATH_LENGTH + 1];
-	int port;
+struct cxl_dev_path_struct {
+	char path[FILE_PATH_LENGTH];
 };
 
+static char device_path[FILE_PATH_LENGTH];
 static dev_t dev_num, dax_dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
@@ -53,12 +43,27 @@ static struct dax_region *region;
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
 
+static const struct file_operations fops = {
+	.owner = THIS_MODULE,
+	.mmap = mmap_helper,
+	.unlocked_ioctl = cxl_range_helper_ioctl
+};
+
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
-	return 0;
+	unsigned long size = vma->vm_end - vma->vm_start;
+	unsigned long pfn;
+
+	if (size > IVSHM_SIZE)
+		return -EINVAL;
+
+	pr_info("cxl: mmap region\n");
+	pfn = IVSHM_BASE_UC >> PAGE_SHIFT;
+	pr_info("cxl: mmap region %lu\n", pfn);
+	return remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot);
 }
 
-static int
-lookup_daxdev(const char *pathname, dev_t *devno) {
+//taken from famfs kernel code
+static int lookup_daxdev(const char *pathname, dev_t *devno) {
 	struct inode *inode;
 	struct path path;
 	int err;
@@ -89,12 +94,27 @@ out_path_put:
 	return err;
 }
 
-static const struct file_operations fops = {
-	.owner = THIS_MODULE,
-	.mmap = mmap_helper
-};
+static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+	struct cxl_dev_path_struct rw;
 
-static int __init ffs_helper_init(void) {	
+	if (copy_from_user(&rw, (void __user *)arg, sizeof(rw)))
+		return -EFAULT;
+
+	pr_info("Path: %s\n", rw.path);
+
+	switch (cmd) {
+		case IOCTL_SET_FILE_PATH:
+			int path_length = strscpy(device_path, rw.path, FILE_PATH_LENGTH);
+			pr_info("%d char copied to file_path. File path: %s\n", path_length, device_path);
+			break;
+		default:
+			return -ENOTTY;
+	}
+
+	return 0;
+}
+
+static int __init cxl_range_helper_init(void) {	
 	//init char device
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
 	cdev_init(&ffs_cdev, &fops);
@@ -103,7 +123,9 @@ static int __init ffs_helper_init(void) {
 	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
 
 	//init others
-	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
+	strscpy(device_path, "/dev/dax0.0", sizeof(device_path)); //default device, can be altered using ioctl
+	pr_info("using default path: %s\n", device_path);
+	int l = lookup_daxdev(device_path, &dax_dev_num);
 	if (!l)
 		pr_info("dax dev num: %d\n", dax_dev_num);
 	cxl_dax_device = dax_dev_get(dax_dev_num);
@@ -113,23 +135,22 @@ static int __init ffs_helper_init(void) {
 	pr_info("test\n");
 	if (cxl_dev_dax)
 		pr_info("got cxl_dev_dax %d start: %llu end: %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.start, cxl_dev_dax->region->res.end);
-	pr_info("famfs_sync_helper: loaded\n");
+	
+	pr_info("get_cxl_range: loaded\n");
 	return 0;
 }
 
-static void __exit ffs_helper_exit(void) {
+static void __exit cxl_range_helper_exit(void) {
 	//destroying char devices
 	device_destroy(ffs_class, dev_num);
 	class_destroy(ffs_class);
 	cdev_del(&ffs_cdev);
 	unregister_chrdev_region(dev_num, 1);
-	pr_info("famfs_sync_helper: unloaded\n"); 
+	pr_info("get_cxl_range: unloaded\n"); 
 }
 
 
-
-
-module_init(ffs_helper_init);
-module_exit(ffs_helper_exit);
+module_init(cxl_range_helper_init);
+module_exit(cxl_range_helper_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("FAMFS sync helper for multi-host configuration (r/w for all, not only master)");
