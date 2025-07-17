@@ -50,6 +50,18 @@ static const struct file_operations fops = {
 	.unlocked_ioctl = cxl_range_helper_ioctl
 };
 
+static vm_fault_t
+famfs_filemap_fault(struct vm_fault *vmf)
+{
+	pr_info("fault\n");
+	return NULL;
+}
+
+const struct vm_operations_struct famfs_file_vm_ops = {
+	.fault		= famfs_filemap_fault
+};
+
+
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	unsigned long size = vma->vm_end - vma->vm_start;
 	long nr_page = 0; 
