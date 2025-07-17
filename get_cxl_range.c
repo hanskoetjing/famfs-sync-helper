@@ -51,6 +51,7 @@ static vm_fault_t
 famfs_filemap_fault(struct vm_fault *vmf)
 {
 	unsigned long pfn;
+	pfn_t pf;
     void *kaddr;
     long nr_pages_avail;
     pgoff_t dax_pgoff;
@@ -58,8 +59,8 @@ famfs_filemap_fault(struct vm_fault *vmf)
 	pr_info("my_device: Page fault at user address 0x%lx (pgoff 0x%lx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
-	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
-	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
+	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pf);
+	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 
 	return VM_FAULT_NOPAGE;
 }
