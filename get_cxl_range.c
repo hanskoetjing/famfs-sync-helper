@@ -24,8 +24,8 @@
 #include <linux/ioport.h>
 #include "dax-private.h"
 
-#define DEVICE_NAME             "ffs_mmap"
-#define CLASS_NAME              "ffs_class"
+#define DEVICE_NAME             "cxl_mmap"
+#define CLASS_NAME              "cxl_mmap_class"
 #define FILE_PATH_LENGTH        128
 #define OPEN_TCP_PORT           57580
 #define MAX_BUFFER_NET          128
