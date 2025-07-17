@@ -50,8 +50,18 @@ static const struct file_operations fops = {
 static vm_fault_t
 famfs_filemap_fault(struct vm_fault *vmf)
 {
-	pr_info("fault\n");
-	return NULL;
+	unsigned long pfn;
+    void *kaddr;
+    long nr_pages_avail;
+    pgoff_t dax_pgoff;
+    struct page *page; 
+	pr_info("my_device: Page fault at user address 0x%lx (pgoff 0x%lx)\n",
+           vmf->address, vmf->pgoff);
+	dax_pgoff = vmf->pgoff;
+	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
+	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
+
+	return VM_FAULT_NOPAGE;
 }
 
 const struct vm_operations_struct famfs_file_vm_ops = {
