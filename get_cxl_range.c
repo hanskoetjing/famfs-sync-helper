@@ -26,7 +26,6 @@
 
 #define DEVICE_NAME             "ffs_mmap"
 #define CLASS_NAME              "ffs_class"
-#define DUMMY_FILE_PATH         "undefined file path, pls setup using ioctl"
 #define FILE_PATH_LENGTH        128
 #define OPEN_TCP_PORT           57580
 #define MAX_BUFFER_NET          128
@@ -108,7 +107,6 @@ static int __init ffs_helper_init(void) {
 	cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
 	if (cxl_dev_dax)
 		pr_info("got cxl_dev_dax %d %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.end);
-	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
 
