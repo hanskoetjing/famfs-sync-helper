@@ -110,6 +110,7 @@ static int __init ffs_helper_init(void) {
 	if (cxl_dax_device)
 		pr_info("got dax_device\n");
 	cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
+	pr_info("test\n");
 	if (cxl_dev_dax)
 		pr_info("got cxl_dev_dax %d start: %llu end: %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.start, cxl_dev_dax->region->res.end);
 	pr_info("famfs_sync_helper: loaded\n");
