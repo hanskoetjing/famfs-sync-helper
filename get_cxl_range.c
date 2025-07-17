@@ -60,7 +60,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pr_info("cxl: mmap region %lu\n", pfn);
 	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
 	if (!ret)
-		pr_inf("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%lx (phys)\n", vma->vm_start, pfn);
+		pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%lx (phys)\n", vma->vm_start, pfn);
 	return ret;
 }
 
