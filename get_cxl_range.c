@@ -42,7 +42,7 @@ static struct dev_dax *cxl_dev_dax;
 static struct dax_region *region;
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
-static int cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
