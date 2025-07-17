@@ -127,15 +127,24 @@ static int __init cxl_range_helper_init(void) {
 	strscpy(device_path, "/dev/dax0.0", sizeof(device_path)); //default device, can be altered using ioctl
 	pr_info("using default path: %s\n", device_path);
 	int l = lookup_daxdev(device_path, &dax_dev_num);
-	if (!l)
+	if (!l) {
 		pr_info("dax dev num: %d\n", dax_dev_num);
-	cxl_dax_device = dax_dev_get(dax_dev_num);
-	if (cxl_dax_device)
-		pr_info("got dax_device\n");
-	cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
-	pr_info("test\n");
-	if (cxl_dev_dax)
-		pr_info("got cxl_dev_dax %d start: %llu end: %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.start, cxl_dev_dax->region->res.end);
+		cxl_dax_device = dax_dev_get(dax_dev_num);
+		if (cxl_dax_device) {
+			pr_info("got dax_device\n");
+			cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
+			pr_info("test\n");
+			if (cxl_dev_dax) {
+				pr_info("got cxl_dev_dax %d start: %llu end: %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.start, cxl_dev_dax->region->res.end);
+			} else {
+				pr_info("no cxl_dev_dax\n");
+			}
+		} else {
+			pr_info("no cxl_dax_device\n");
+		}
+	} else {
+		pr_info("no dax dev num:\n");
+	}
 	
 	pr_info("get_cxl_range: loaded\n");
 	return 0;
