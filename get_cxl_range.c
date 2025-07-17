@@ -13,7 +13,6 @@
 #include <linux/path.h>
 #include <linux/dax.h>
 #include <linux/ioport.h>
-#include "dax-private.h"
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
@@ -38,8 +37,6 @@ static struct cdev ffs_cdev;
 static struct class *ffs_class;
 static struct device *cxl_dax_device_device;
 static struct dax_device *cxl_dax_device;
-static struct dev_dax *cxl_dev_dax;
-static struct dax_region *region;
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
 static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
@@ -151,14 +148,6 @@ static int __init cxl_range_helper_init(void) {
 		cxl_dax_device = dax_dev_get(dax_dev_num);
 		if (cxl_dax_device) {
 			pr_info("got dax_device\n");
-			/*
-			cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
-			pr_info("test\n");
-			if (cxl_dev_dax) {
-				pr_info("got cxl_dev_dax %d \n", cxl_dev_dax->id);
-			} else {
-				pr_info("no cxl_dev_dax\n");
-			}*/
 		} else {
 			pr_info("no cxl_dax_device\n");
 		}
