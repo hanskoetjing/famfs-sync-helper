@@ -98,10 +98,6 @@ static int __init ffs_helper_init(void) {
 	ffs_class = class_create(CLASS_NAME);
 	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
 
-	//init tcp and poll
-	tcp_server_start();
-	init_waitqueue_head(&wq);
-
 	//init others
 	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
 	if (!l)
@@ -120,10 +116,6 @@ static int __init ffs_helper_init(void) {
 }
 
 static void __exit ffs_helper_exit(void) {
-	//stopping tcp connection stuff
-	kthread_stop(my_kthread);
-	tcp_server_stop();
-
 	//destroying char devices
 	device_destroy(ffs_class, dev_num);
 	class_destroy(ffs_class);
