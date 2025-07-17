@@ -55,7 +55,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pfn_t pfn;
 	void **kaddr;
 
-	pr_info("cxl: mmap region\n");
+	pr_info("cxl: mmap region size: %llu\n", size);
 	dax_direct_access(cxl_dax_device, 0, 262144, DAX_ACCESS, kaddr, &pfn);
 	pr_info("cxl: mmap region %lu\n", pfn);
 	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);

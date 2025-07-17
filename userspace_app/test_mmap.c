@@ -6,9 +6,10 @@
 #include <errno.h>
 
 int main() {
-    int fd = open("/dev/cxl_mmap", O_RDWR | O_SYNC);
+    
 
     for (int i = 0; i < 10; i++) {
+        int fd = open("/dev/cxl_mmap", O_RDWR | O_SYNC);
         if (fd < 0) {
             perror("open");
             return 1;
