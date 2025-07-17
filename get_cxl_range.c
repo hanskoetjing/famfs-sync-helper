@@ -52,15 +52,16 @@ static const struct file_operations fops = {
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long pfn;
-
-	if (size > IVSHM_SIZE)
-		return -EINVAL;
+	pfn_t pfn;
+	void **kaddr;
 
 	pr_info("cxl: mmap region\n");
-	pfn = IVSHM_BASE_UC >> PAGE_SHIFT;
+	dax_direct_access(cxl_dax_device, 0, 262144, DAX_ACCESS, kaddr, &pfn);
 	pr_info("cxl: mmap region %lu\n", pfn);
-	return remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot);
+	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
+	if (!ret)
+		pr_inf("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%lx (phys)\n", vma->vm_start, pfn);
+	return ret;
 }
 
 //taken from famfs kernel code
@@ -132,16 +133,18 @@ static int __init cxl_range_helper_init(void) {
 		cxl_dax_device = dax_dev_get(dax_dev_num);
 		if (cxl_dax_device) {
 			pr_info("got dax_device\n");
+			/*
 			cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
 			pr_info("test\n");
 			if (cxl_dev_dax) {
-				pr_info("got cxl_dev_dax %d start: %llu end: %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.start, cxl_dev_dax->region->res.end);
+				pr_info("got cxl_dev_dax %d \n", cxl_dev_dax->id);
 			} else {
 				pr_info("no cxl_dev_dax\n");
-			}
+			}*/
 		} else {
 			pr_info("no cxl_dax_device\n");
 		}
+		
 	} else {
 		pr_info("no dax dev num:\n");
 	}
