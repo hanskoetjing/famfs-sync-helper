@@ -108,8 +108,6 @@ static int __init ffs_helper_init(void) {
 	if (cxl_dev_dax)
 		pr_info("got cxl_dev_dax %d %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.end);
 	pr_info("famfs_sync_helper: loaded\n");
-	pr_info("%s\n", ffs_file_path);
-
 	return 0;
 }
 
