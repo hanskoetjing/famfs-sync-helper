@@ -52,12 +52,17 @@ static const struct file_operations fops = {
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	unsigned long size = vma->vm_end - vma->vm_start;
+	long nr_page = 0; 
 	pfn_t pfn;
 	void **kaddr;
+	
 
 	pr_info("cxl: mmap region size: %llu\n", size);
-	dax_direct_access(cxl_dax_device, 0, 262144, DAX_ACCESS, kaddr, &pfn);
-	pr_info("cxl: mmap region %lu\n", pfn);
+	nr_page = size / PAGE_SIZE;
+	if (size % PAGE_SIZE != 0)
+		nr_page += 1;
+	long dax_ret = dax_direct_access(cxl_dax_device, 0, nr_page, DAX_ACCESS, kaddr, &pfn);
+	pr_info("cxl: mmap region %lu sz: %d\n", pfn, dax_ret);
 	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
 	if (!ret)
 		pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%lx (phys)\n", vma->vm_start, pfn);
