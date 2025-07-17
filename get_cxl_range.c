@@ -89,6 +89,11 @@ out_path_put:
 	return err;
 }
 
+static const struct file_operations fops = {
+	.owner = THIS_MODULE,
+	.mmap = mmap_helper
+};
+
 static int __init ffs_helper_init(void) {	
 	//init char device
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
@@ -120,10 +125,7 @@ static void __exit ffs_helper_exit(void) {
 	pr_info("famfs_sync_helper: unloaded\n"); 
 }
 
-static const struct file_operations fops = {
-	.owner = THIS_MODULE,
-	.mmap = mmap_helper
-};
+
 
 
 module_init(ffs_helper_init);
