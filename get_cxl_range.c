@@ -35,7 +35,6 @@ static char device_path[FILE_PATH_LENGTH];
 static dev_t dev_num, dax_dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
-static struct device *cxl_dax_device_device;
 static struct dax_device *cxl_dax_device;
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
@@ -47,22 +46,19 @@ static const struct file_operations fops = {
 	.unlocked_ioctl = cxl_range_helper_ioctl
 };
 
-static vm_fault_t
-famfs_filemap_fault(struct vm_fault *vmf)
+static vm_fault_t famfs_filemap_fault(struct vm_fault *vmf)
 {
-	unsigned long pfn;
 	pfn_t pf;
-    void *kaddr;
+    void *kaddr = NULL;
     long nr_pages_avail;
-    pgoff_t dax_pgoff;
-    struct page *page; 
+    pgoff_t dax_pgoff; 
 	pr_info("my_device: Page fault at user address 0x%lx (pgoff 0x%lx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pf);
-	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
+	vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 
-	return VM_FAULT_NOPAGE;
+	return vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 }
 
 const struct vm_operations_struct famfs_file_vm_ops = {
@@ -87,7 +83,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 
 	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
 	if (!ret)
-	pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%llx (phys)\n", vma->vm_start, pfn.val);
+		pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%llx (phys)\n", vma->vm_start, pfn.val);
 	return 0;
 }
 
