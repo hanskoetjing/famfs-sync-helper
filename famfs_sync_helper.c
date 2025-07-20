@@ -18,11 +18,6 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/spinlock.h>
-#include <linux/namei.h>
-#include <linux/path.h>
-#include <linux/dax.h>
-#include <linux/ioport.h>
-#include "dax-private.h"
 
 #define DEVICE_NAME             "ffs_sync"
 #define CLASS_NAME              "ffs_class"
@@ -54,10 +49,6 @@ static struct class *ffs_class;
 static struct socket *server_socket;
 static struct sockaddr_in sin;
 static struct task_struct *my_kthread;
-static struct device *cxl_dax_device_device;
-static struct dax_device *cxl_dax_device;
-static struct dev_dax *cxl_dev_dax;
-static struct dax_region *region;
 static int port = 57580;
 static wait_queue_head_t wq;
 static int ready = 0;
@@ -218,39 +209,6 @@ static const struct file_operations fops = {
 	.read = ffs_helper_read
 };
 
-static int
-lookup_daxdev(const char *pathname, dev_t *devno)
-{
-	struct inode *inode;
-	struct path path;
-	int err;
-
-	if (!pathname || !*pathname)
-		return -EINVAL;
-
-	err = kern_path(pathname, LOOKUP_FOLLOW, &path);
-	if (err)
-		return err;
-
-	inode = d_backing_inode(path.dentry);
-	if (!S_ISCHR(inode->i_mode)) {
-		err = -EINVAL;
-		goto out_path_put;
-	}
-
-	if (!may_open_dev(&path)) { /* had to export this */
-		err = -EACCES;
-		goto out_path_put;
-	}
-
-	 /* if it's dax, i_rdev is struct dax_device */
-	*devno = inode->i_rdev;
-
-out_path_put:
-	path_put(&path);
-	return err;
-}
-
 static int __init ffs_helper_init(void) {	
 	//init char device
 	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
@@ -265,14 +223,6 @@ static int __init ffs_helper_init(void) {
 
 	//init others
 	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
-	if (!l)
-		pr_info("dax dev num: %d\n", dax_dev_num);
-	cxl_dax_device = dax_dev_get(dax_dev_num);
-	if (cxl_dax_device)
-		pr_info("got dax_device\n");
-	cxl_dev_dax = container_of(&cxl_dax_device, struct dev_dax, dax_dev);
-	if (cxl_dev_dax)
-		pr_info("got cxl_dev_dax %d %llu\n", cxl_dev_dax->id, cxl_dev_dax->region->res.end);
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
