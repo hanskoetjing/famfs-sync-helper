@@ -80,7 +80,6 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 
 	pr_info("cxl: mmap region size: %lu\n", size);
 	vma->vm_ops = &cxl_helper_file_vm_ops;
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_SHARED;
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
