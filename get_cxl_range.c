@@ -39,7 +39,7 @@ static struct dax_device *cxl_dax_device;
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
 static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-static int get_cxl_device();
+static int get_cxl_device(void);
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -120,7 +120,7 @@ out_path_put:
 	return err;
 }
 
-static int get_cxl_device() {
+static int get_cxl_device(void) {
 	int l = lookup_daxdev(device_path, &dax_dev_num);
 	if (!l) {
 		pr_info("dax dev num: %d\n", dax_dev_num);
