@@ -79,7 +79,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	//	nr_page += 1;
 	vma->vm_ops = &cxl_helper_file_vm_ops;
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
-	pr_info("cxl: mmap region sz: %ld\n", dax_ret);
+	//pr_info("cxl: mmap region sz: %ld\n", dax_ret);
 
 	//int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
 	//if (!ret)
