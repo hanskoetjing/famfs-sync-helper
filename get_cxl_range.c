@@ -120,6 +120,24 @@ out_path_put:
 	return err;
 }
 
+static int get_cxl_device() {
+	int l = lookup_daxdev(device_path, &dax_dev_num);
+	if (!l) {
+		pr_info("dax dev num: %d\n", dax_dev_num);
+		cxl_dax_device = dax_dev_get(dax_dev_num);
+		if (cxl_dax_device) {
+			pr_info("got dax_device\n");
+		} else {
+			pr_info("no cxl_dax_device\n");
+		}
+		
+	} else {
+		pr_info("no dax dev num:\n");
+	}
+	
+	return 0;
+}
+
 static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
 	struct cxl_dev_path_struct rw;
 
@@ -138,24 +156,6 @@ static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned
 			return -ENOTTY;
 	}
 
-	return 0;
-}
-
-static int get_cxl_device() {
-	int l = lookup_daxdev(device_path, &dax_dev_num);
-	if (!l) {
-		pr_info("dax dev num: %d\n", dax_dev_num);
-		cxl_dax_device = dax_dev_get(dax_dev_num);
-		if (cxl_dax_device) {
-			pr_info("got dax_device\n");
-		} else {
-			pr_info("no cxl_dax_device\n");
-		}
-		
-	} else {
-		pr_info("no dax dev num:\n");
-	}
-	
 	return 0;
 }
 
