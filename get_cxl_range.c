@@ -78,7 +78,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	nr_page = size / PAGE_SIZE;
 	if (size % PAGE_SIZE != 0)
 		nr_page += 1;
-	vma->vm_ops = &famfs_file_vm_ops;
+	vma->vm_ops = &cxl_helper_file_vm_ops;
 	long dax_ret = dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, kaddr, &pfn);
 	pr_info("cxl: mmap region sz: %ld\n", dax_ret);
 
