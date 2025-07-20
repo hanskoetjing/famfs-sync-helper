@@ -222,7 +222,6 @@ static int __init ffs_helper_init(void) {
 	init_waitqueue_head(&wq);
 
 	//init others
-	int l = lookup_daxdev("/dev/dax0.0", &dax_dev_num);
 	strscpy(ffs_file_path, DUMMY_FILE_PATH, 64);
 	pr_info("famfs_sync_helper: loaded\n");
 	pr_info("%s\n", ffs_file_path);
