@@ -131,6 +131,7 @@ static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned
 		case IOCTL_SET_FILE_PATH:
 			int path_length = strscpy(device_path, rw.path, FILE_PATH_LENGTH);
 			pr_info("%d char copied to file_path. File path: %s\n", path_length, device_path);
+			get_cxl_device();
 			break;
 		default:
 			return -ENOTTY;
@@ -139,17 +140,7 @@ static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned
 	return 0;
 }
 
-static int __init cxl_range_helper_init(void) {	
-	//init char device
-	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
-	cdev_init(&ffs_cdev, &fops);
-	cdev_add(&ffs_cdev, dev_num, 1);
-	ffs_class = class_create(CLASS_NAME);
-	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
-
-	//init others
-	strscpy(device_path, "/dev/dax0.0", sizeof(device_path)); //default device, can be altered using ioctl
-	pr_info("using default path: %s\n", device_path);
+static int get_cxl_device() {
 	int l = lookup_daxdev(device_path, &dax_dev_num);
 	if (!l) {
 		pr_info("dax dev num: %d\n", dax_dev_num);
@@ -164,6 +155,20 @@ static int __init cxl_range_helper_init(void) {
 		pr_info("no dax dev num:\n");
 	}
 	
+	return 0;
+}
+
+static int __init cxl_range_helper_init(void) {	
+	//init char device
+	alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
+	cdev_init(&ffs_cdev, &fops);
+	cdev_add(&ffs_cdev, dev_num, 1);
+	ffs_class = class_create(CLASS_NAME);
+	device_create(ffs_class, NULL, dev_num, NULL, DEVICE_NAME);
+
+	//init others
+	strscpy(device_path, "/dev/dax0.0", sizeof(device_path)); //default device, can be altered using ioctl
+	pr_info("using default path: %s\n", device_path);
 	pr_info("get_cxl_range: loaded\n");
 	return 0;
 }
