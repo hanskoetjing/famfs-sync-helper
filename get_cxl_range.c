@@ -47,7 +47,7 @@ static const struct file_operations fops = {
 	.unlocked_ioctl = cxl_range_helper_ioctl
 };
 
-static vm_fault_t famfs_filemap_fault(struct vm_fault *vmf)
+static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 {
 	pfn_t pf;
     void *kaddr = NULL;
@@ -62,8 +62,8 @@ static vm_fault_t famfs_filemap_fault(struct vm_fault *vmf)
 	return vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 }
 
-const struct vm_operations_struct famfs_file_vm_ops = {
-	.fault		= famfs_filemap_fault
+const struct vm_operations_struct cxl_helper_file_vm_ops = {
+	.fault		= cxl_helper_filemap_fault
 };
 
 
@@ -171,6 +171,7 @@ static int __init cxl_range_helper_init(void) {
 	strscpy(device_path, "/dev/dax0.0", sizeof(device_path)); //default device, can be altered using ioctl
 	pr_info("using default path: %s\n", device_path);
 	pr_info("get_cxl_range: loaded\n");
+	get_cxl_device();
 	return 0;
 }
 
