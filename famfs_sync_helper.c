@@ -43,7 +43,7 @@ static DEFINE_SPINLOCK(ctr_lock);
 static char *commands[] = {"SBGN", "REND", "SACK", "SNCK", NULL};
 static char ffs_file_path[FILE_PATH_LENGTH + 1];
 static int path_length;
-static dev_t dev_num, dax_dev_num;
+static dev_t dev_num;
 static struct cdev ffs_cdev;
 static struct class *ffs_class;
 static struct socket *server_socket;
