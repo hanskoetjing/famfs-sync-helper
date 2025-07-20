@@ -40,6 +40,7 @@ static struct dax_device *cxl_dax_device;
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
 static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int get_cxl_device(void);
+static pgoff_t dax_pgoff; 
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -52,7 +53,7 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	pfn_t pf;
     void *kaddr = NULL;
     long nr_pages_avail;
-    pgoff_t dax_pgoff; 
+    
 	pr_info("my_device: Page fault at user address 0x%lx (pgoff 0x%lx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
@@ -79,7 +80,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	if (size % PAGE_SIZE != 0)
 		nr_page += 1;
 	vma->vm_ops = &cxl_helper_file_vm_ops;
-	long dax_ret = dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, kaddr, &pfn);
+	long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	pr_info("cxl: mmap region sz: %ld\n", dax_ret);
 
 	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
@@ -172,6 +173,7 @@ static int __init cxl_range_helper_init(void) {
 	pr_info("using default path: %s\n", device_path);
 	pr_info("get_cxl_range: loaded\n");
 	get_cxl_device();
+	dax_pgoff = 0;
 	return 0;
 }
 
