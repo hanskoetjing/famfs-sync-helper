@@ -54,12 +54,10 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
     void *kaddr = NULL;
     long nr_pages_avail;
     
-	pr_info("my_device: Page fault at user address 0x%lx (pgoff 0x%lx)\n",
+	pr_info("Page fault at user address 0x%lx (pgoff 0x%lx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pf);
-	vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
-
 	return vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 }
 
@@ -76,16 +74,16 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	
 
 	pr_info("cxl: mmap region size: %lu\n", size);
-	nr_page = size / PAGE_SIZE;
-	if (size % PAGE_SIZE != 0)
-		nr_page += 1;
+	//nr_page = size / PAGE_SIZE;
+	//if (size % PAGE_SIZE != 0)
+	//	nr_page += 1;
 	vma->vm_ops = &cxl_helper_file_vm_ops;
-	long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
+	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	pr_info("cxl: mmap region sz: %ld\n", dax_ret);
 
-	int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
-	if (!ret)
-		pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%llx (phys)\n", vma->vm_start, pfn.val);
+	//int ret = remap_pfn_range(vma, vma->vm_start, pfn.val, size, vma->vm_page_prot);
+	//if (!ret)
+	//	pr_info("DAX mmap: 0x%lx (user virt) mapped to PFN 0x%llx (phys)\n", vma->vm_start, pfn.val);
 	return 0;
 }
 
