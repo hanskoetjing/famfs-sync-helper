@@ -72,12 +72,16 @@ const struct vm_operations_struct cxl_helper_file_vm_ops = {
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	unsigned long size = vma->vm_end - vma->vm_start;
+	void *kaddr;
 
 	pr_info("cxl: mmap region size: %lu\n", size);
 	vma->vm_ops = &cxl_helper_file_vm_ops;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
-	//io_base = ioremap_uc();
+	pfn_t pf;
+	dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
+	unsigned long addr = pf.val << PAGE_SHIFT;
+	io_base = ioremap_uc(addr, 1024*1024);
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
