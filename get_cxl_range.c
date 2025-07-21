@@ -61,6 +61,7 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	int is_pfn_valid = pfn_valid(pf.val);
 	unsigned long pfn = pf.val << PAGE_SHIFT;
 	is_pfn_valid = pfn_valid(pfn);
+	pr_info("PFN after shifted: 0x%llx", pfn);
 	if (is_pfn_valid) {
 		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
 		pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
