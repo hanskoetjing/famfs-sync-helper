@@ -46,6 +46,7 @@ static const struct file_operations fops = {
 static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 {
 	pfn_t pf;
+	unsigned long pfn_from_kaddr;
     void *kaddr;
     long nr_pages_avail;
     
@@ -56,7 +57,8 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	pr_info("Num of page(s) %d, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
-	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
+	pfn_from_kaddr = virt_to_pfn(kaddr);
+	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn_from_kaddr);
 	pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
            vmf->address, vmf->pgoff);
 	if (ret)
