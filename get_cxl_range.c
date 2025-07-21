@@ -61,7 +61,6 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	pr_info("Num of page(s) %ld, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
 	int is_pfn_valid = pfn_valid(pf.val);
 	pr_info("Is PFN valid? %d\n", is_pfn_valid);
-	//if (is_pfn_valid) {
 	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 	pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
 		vmf->address, vmf->pgoff);	
