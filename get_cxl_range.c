@@ -48,7 +48,6 @@ static const struct file_operations fops = {
 static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 {
 	pfn_t pf;
-	unsigned long pfn_from_kaddr;
     void *kaddr;
     long nr_pages_avail;
     
