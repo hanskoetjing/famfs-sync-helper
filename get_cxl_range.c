@@ -84,7 +84,8 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pfn_t pf;
 	if (cxl_dax_device)
 		get_cxl_device();
-	dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, &kaddr, &pf);
+	long a = dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, &kaddr, &pf);
+	pr_info("Get addr result: %d\n", a);
 	d = container_of(&cxl_dax_device ,struct dev_dax, dax_dev);
 	if (d) {
 		pr_info("d %u %d %d\n", d->nr_range, d->dyn_id, d->id);
