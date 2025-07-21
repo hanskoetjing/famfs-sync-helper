@@ -60,6 +60,7 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	pr_info("Num of page(s) %ld, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
+	
 	vm_fault_t ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 	pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
 		vmf->address, vmf->pgoff);	
@@ -81,15 +82,21 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
 	pfn_t pf;
-	dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
-	unsigned long addr = pf.val << PAGE_SHIFT;
+	if (cxl_dax_device)
+		get_cxl_device();
+	dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, &kaddr, &pf);
 	d = container_of(&cxl_dax_device ,struct dev_dax, dax_dev);
 	if (d) {
-		pr_info("d\n");
-		io_base = ioremap(d->region->res.start, 1024*1024);
-
+		pr_info("d %u %d %d\n", d->nr_range, d->dyn_id, d->id);
+						if (d->region) {
+				pr_info("r\n");
+		}
+		//try to ioremap, using fixed address first
+		resource_size_t t = 0x00000008d1200000ULL;
+		io_base = ioremap(t, 5*1024*1024);
+		pr_info("aaaaaa\n");
 	}
-		
+
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
