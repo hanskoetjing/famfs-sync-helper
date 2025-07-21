@@ -84,8 +84,12 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	unsigned long addr = pf.val << PAGE_SHIFT;
 	d = container_of(&cxl_dax_device ,struct dev_dax, dax_dev);
-	if (d)
+	if (d) {
+		pr_info("d\n");
 		io_base = ioremap(d->region->res.start, 1024*1024);
+
+	}
+		
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
