@@ -36,6 +36,8 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma);
 static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int get_cxl_device(void);
 static pgoff_t dax_pgoff; 
+static void __iomem *io_base;
+
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
@@ -75,6 +77,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	vma->vm_ops = &cxl_helper_file_vm_ops;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP);
+	//io_base = ioremap_uc();
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
@@ -118,6 +121,7 @@ static int get_cxl_device(void) {
 		cxl_dax_device = dax_dev_get(dax_dev_num);
 		if (cxl_dax_device) {
 			pr_info("got dax_device\n");
+			dax_write_cache(cxl_dax_device, false);
 		} else {
 			pr_info("no cxl_dax_device\n");
 		}
