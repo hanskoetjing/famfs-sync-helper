@@ -18,11 +18,6 @@
 #define CLASS_NAME              "cxl_mmap_class"
 #define FILE_PATH_LENGTH        32
 
-//temporary definition
-#define IVSHM_BASE_UC		    0xc080000000ULL
-#define IVSHM_SIZE              0x02000000ULL 
-//temporary definition end
-
 #define IOCTL_MAGIC             0xCC
 #define IOCTL_SET_FILE_PATH     _IOW(IOCTL_MAGIC, 0x01, struct cxl_dev_path_struct)
 
@@ -60,7 +55,7 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	if (!cxl_dax_device)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
-	pr_info("Num of page(s) %d, pfn: 0x%llx\n", nr_pages_avail, pf.val);
+	pr_info("Num of page(s) %d, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
 	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 	pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
            vmf->address, vmf->pgoff);
