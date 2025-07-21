@@ -81,7 +81,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pfn_t pf;
 	dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	unsigned long addr = pf.val << PAGE_SHIFT;
-	io_base = ioremap_uc(addr, 1024*1024);
+	io_base = ioremap(addr, 1024*1024);
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
