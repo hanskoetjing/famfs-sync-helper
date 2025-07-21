@@ -58,12 +58,18 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	pr_info("Num of page(s) %d, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
-	pr_info("Is PFN valid? %d\n", pfn_valid(pf.val));
-	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
-	pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
+	int is_pfn_valid = pfn_valid(pf.val);
+	unsigned long pfn = pf.val << PAGE_SHIFT;
+	is_pfn_valid = pfn_valid(pfn);
+	if (is_pfn_valid) {
+		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
+		pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
            vmf->address, vmf->pgoff);
-	if (ret)
-		return VM_FAULT_SIGBUS;
+		if (ret)
+			return VM_FAULT_SIGBUS;
+	}
+	pr_info("Is PFN valid? %d\n", is_pfn_valid);
+	
 	return VM_FAULT_NOPAGE;
 }
 
