@@ -61,17 +61,19 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	pr_info("Num of page(s) %ld, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
 	int is_pfn_valid = pfn_valid(pf.val);
 	unsigned long pfn = pf.val << PAGE_SHIFT;
-	unsigned long to_map = __phys_to_pfn(pfn);
-	is_pfn_valid = pfn_valid(to_map);
-	pr_info("PFN after shifted: 0x%lx", pfn);
+	unsigned long to_map = pfn + (dax_pgoff << PAGE_SHIFT);
+	unsigned long pfn_to_map = to_map >> PAGE_SHIFT;
+	is_pfn_valid = pfn_valid(pfn_to_map);
+	pr_info("PFN after shifted: 0x%lx, pfn to map: 0x%lx", pfn, pfn_to_map);
+	pr_info("Is PFN valid? %d\n", is_pfn_valid);
 	if (is_pfn_valid) {
-		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
-		pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
+		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn_to_map);
+		pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pfn_to_map,
            vmf->address, vmf->pgoff);
 		if (ret)
 			return VM_FAULT_SIGBUS;
 	}
-	pr_info("Is PFN valid? %d\n", is_pfn_valid);
+	
 	
 	return VM_FAULT_NOPAGE;
 }
