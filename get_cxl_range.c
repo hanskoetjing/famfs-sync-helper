@@ -13,6 +13,7 @@
 #include <linux/path.h>
 #include <linux/dax.h>
 #include <linux/ioport.h>
+#include "dax-private.h"
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
@@ -37,6 +38,7 @@ static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned
 static int get_cxl_device(void);
 static pgoff_t dax_pgoff; 
 static void __iomem *io_base;
+static struct dev_dax *d;
 
 
 static const struct file_operations fops = {
@@ -81,7 +83,9 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pfn_t pf;
 	dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	unsigned long addr = pf.val << PAGE_SHIFT;
-	io_base = ioremap(addr, 1024*1024);
+	d = container_of(&cxl_dax_device ,struct dev_dax, dax_dev);
+	if (d)
+		io_base = ioremap(d->region->res.start, 1024*1024);
 	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
 	return 0;
 }
