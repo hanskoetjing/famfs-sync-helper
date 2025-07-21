@@ -13,7 +13,7 @@
 #include <linux/path.h>
 #include <linux/dax.h>
 #include <linux/ioport.h>
-#include "dax-private.h"
+
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
@@ -38,7 +38,6 @@ static long cxl_range_helper_ioctl(struct file *file, unsigned int cmd, unsigned
 static int get_cxl_device(void);
 static pgoff_t dax_pgoff; 
 static void __iomem *io_base;
-static struct dev_dax *d;
 
 
 static const struct file_operations fops = {
@@ -84,21 +83,7 @@ static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	pfn_t pf;
 	if (cxl_dax_device)
 		get_cxl_device();
-	long a = dax_direct_access(cxl_dax_device, 0, 1, DAX_ACCESS, &kaddr, &pf);
-	pr_info("Get addr result: %d\n", a);
-	d = container_of(&cxl_dax_device ,struct dev_dax, dax_dev);
-	if (d) {
-		pr_info("d %u %d %d\n", d->nr_range, d->dyn_id, d->id);
-						if (d->region) {
-				pr_info("r\n");
-		}
-		//try to ioremap, using fixed address first
-		resource_size_t t = 0x00000008d1200000ULL;
-		io_base = ioremap(t, 5*1024*1024);
-		pr_info("aaaaaa\n");
-	}
-
-	//long dax_ret = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, kaddr, &pfn);
+	//not remap_pfn_range in here, will be handled by page fault function
 	return 0;
 }
 
