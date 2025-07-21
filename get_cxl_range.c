@@ -54,12 +54,15 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
     void *kaddr;
     long nr_pages_avail;
     
-	pr_info("Page fault at user address 0x%lx (pgoff 0x%lx)\n",
+	pr_info("Page fault at user address 0x%llx (pgoff 0x%llx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
+	if (!cxl_dax_device)
+		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
+	pr_info("Num of page(s) %d, pfn: 0x%llx\n", nr_pages_avail, pf.val);
 	int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
-	pr_info("Mapping 0x%lx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
+	pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
            vmf->address, vmf->pgoff);
 	if (ret)
 		return VM_FAULT_SIGBUS;
