@@ -65,8 +65,11 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 		pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
            vmf->address, vmf->pgoff);
-		if (ret)
+		if (ret){
+			pr_info("inserting pfn, ret: %d\n", ret);
 			return VM_FAULT_SIGBUS;
+		}
+			
 	}
 	
 	
