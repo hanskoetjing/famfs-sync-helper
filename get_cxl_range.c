@@ -13,8 +13,6 @@
 #include <linux/path.h>
 #include <linux/dax.h>
 #include <linux/ioport.h>
-#include <linux/mmzone.h>
-#include <asm-generic/memory_model.h>
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
@@ -58,8 +56,6 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
 	pr_info("Num of page(s) %ld, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
-	int is_pfn_valid = pfn_valid(pf.val);
-	pr_info("Is PFN valid? %d\n", is_pfn_valid);
 	vm_fault_t ret = vmf_insert_pfn(vmf->vma, vmf->address, pf.val);
 	pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
 		vmf->address, vmf->pgoff);	
