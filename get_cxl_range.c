@@ -14,6 +14,7 @@
 #include <linux/dax.h>
 #include <linux/ioport.h>
 #include <linux/mmzone.h>
+#include <asm-generic/memory_model.h>
 
 #define DEVICE_NAME             "cxl_mmap"
 #define CLASS_NAME              "cxl_mmap_class"
@@ -51,16 +52,17 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
     void *kaddr;
     long nr_pages_avail;
     
-	pr_info("Page fault at user address 0x%llx (pgoff 0x%llx)\n",
+	pr_info("Page fault at user address 0x%lx (pgoff 0x%lx)\n",
            vmf->address, vmf->pgoff);
 	dax_pgoff = vmf->pgoff;
 	if (!cxl_dax_device)
 		get_cxl_device();
 	nr_pages_avail = dax_direct_access(cxl_dax_device, dax_pgoff, 1, DAX_ACCESS, &kaddr, &pf);
-	pr_info("Num of page(s) %d, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
+	pr_info("Num of page(s) %ld, pfn: 0x%llx, kaddr %p\n", nr_pages_avail, pf.val, kaddr);
 	int is_pfn_valid = pfn_valid(pf.val);
 	unsigned long pfn = pf.val << PAGE_SHIFT;
-	is_pfn_valid = pfn_valid(pfn);
+	unsigned long to_map = __phys_to_pfn(pfn);
+	is_pfn_valid = pfn_valid(to_map);
 	pr_info("PFN after shifted: 0x%lx", pfn);
 	if (is_pfn_valid) {
 		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
