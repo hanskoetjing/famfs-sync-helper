@@ -61,10 +61,10 @@ static vm_fault_t cxl_helper_filemap_fault(struct vm_fault *vmf)
 	int is_pfn_valid = pfn_valid(pf.val);
 	unsigned long pfn = pf.val << PAGE_SHIFT;
 	is_pfn_valid = pfn_valid(pfn);
-	pr_info("PFN after shifted: 0x%llx", pfn);
+	pr_info("PFN after shifted: 0x%lx", pfn);
 	if (is_pfn_valid) {
 		int ret = vmf_insert_pfn(vmf->vma, vmf->address, pfn);
-		pr_info("Mapping 0x%llx from mem to 0x%llx (pgoff 0x%llx)\n", pf.val,
+		pr_info("Mapping 0x%llx from mem to 0x%lx (pgoff 0x%lx)\n", pf.val,
            vmf->address, vmf->pgoff);
 		if (ret)
 			return VM_FAULT_SIGBUS;
@@ -81,10 +81,6 @@ const struct vm_operations_struct cxl_helper_file_vm_ops = {
 
 static int mmap_helper(struct file *filp, struct vm_area_struct *vma) {
 	unsigned long size = vma->vm_end - vma->vm_start;
-	long nr_page = 0; 
-	pfn_t pfn;
-	void **kaddr = NULL;
-	
 
 	pr_info("cxl: mmap region size: %lu\n", size);
 	vma->vm_ops = &cxl_helper_file_vm_ops;
